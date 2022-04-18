@@ -15,6 +15,8 @@ setup(
         'pandas',
         'scikit-learn',
         'matplotlib',
-        'tqdm'
+        'tqdm',
+        'pciSeq',
+        'h5py'
     ]
 )
