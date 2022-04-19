@@ -18,14 +18,13 @@ def filter_genes(gene_names):
     return keep_genes
 
 
-def load_data_tasic_2018(datapath, classify_by='cluster'):
+def load_data_tasic_2018(datapath):
     """
     Load the scRNAseq data from Tasic et al., "Shared and distinct
     transcriptomic cell types across neocortical areas", Nature, 2018.
 
     Args:
         datapath: path to the data
-        classify_by: field to use for classification (Default: 'cluster')
 
     Returns:
         exons_matrix: n cells x n genes matrix (numpy.ndarray) of read counts
@@ -60,27 +59,29 @@ def load_data_tasic_2018(datapath, classify_by='cluster'):
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('Batch')]
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('Low Quality')]
 
-    exons_matrix = exons_subset.filter(regex='\d').to_numpy() # n cells x n genes matrix
+    return exons_subset, gene_names
+
+
+def compute_means(exons_df, classify_by, gene_filter='\d'):
+    exons_matrix = exons_df.filter(regex=gene_filter).to_numpy() # n cells x n genes matrix
     # names of columns containing expression data are integer numbers
-    expression_by_cluster = exons_subset.groupby([classify_by]).mean().filter(regex='\d')
+    expression_by_cluster = exons_df.groupby([classify_by]).mean().filter(regex=gene_filter)
     cluster_means = expression_by_cluster.to_numpy()   # n clusters x n genes matrix
 
-    cluster_ids = np.empty(len(exons_subset[classify_by]), dtype=int)
-    for i, cluster in enumerate(exons_subset[classify_by]):
+    cluster_ids = np.empty(len(exons_df[classify_by]), dtype=int)
+    for i, cluster in enumerate(exons_df[classify_by]):
         cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0]
     cluster_labels = expression_by_cluster.index
+    return exons_matrix, cluster_ids, cluster_means, cluster_labels
 
-    return exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names
 
-
-def load_data_yao_2021(datapath, classify_by='cluster_label'):
+def load_data_yao_2021(datapath):
     """
     Load the scRNAseq data from Yao et al., "A taxonomy of transcriptomic cell
     types across the isocortex and hippocampal formation", Cell, 2021.
 
     Args:
         datapath: path to the data
-        classify_by: field to use for classification (Default: 'cluster_label')
 
     Returns:
         exons_matrix: n cells x n genes matrix (numpy.ndarray) of read counts
@@ -140,15 +141,8 @@ def load_data_yao_2021(datapath, classify_by='cluster_label'):
 
     exons_df['sample_name'] = samples
     exons_df = metadata.join(exons_df.set_index('sample_name'), on='sample_name')
-    exons_matrix = exons_df.filter(regex='gene_').to_numpy()
 
-    expression_by_cluster = exons_df.groupby([classify_by]).mean().filter(regex='gene_')
-    cluster_means = expression_by_cluster.to_numpy()   # n clusters x n genes matrix
-    cluster_ids = np.empty(len(exons_df[classify_by]), dtype=int)
-    for i, cluster in enumerate(exons_df[classify_by]):
-        cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0]
-    cluster_labels = expression_by_cluster.index
-    return exons_matrix, cluster_ids, cluster_means, cluster_labels, pd.Series(gene_names)
+    return exons_df, pd.Series(gene_names)
 
 
 def resample_counts(exons_matrix, cluster_means, efficiency=0.01):
@@ -343,18 +337,31 @@ def classify_cells(exons_matrix, cluster_means, gene_set, gene_names, nu=0.001):
     return cluster_assignments
 
 
-def evaluate_gene_set(exons_matrix, cluster_means, gene_set, gene_names, cluster_ids):
+def evaluate_gene_set(train_set, test_set, gene_set, gene_names):
     """ Plot classification accuracy while incrementally growing the gene set """
     ngenes = len(gene_set)
-    accuracy = np.empty(ngenes)
+    accuracy_train = np.empty(ngenes)
+    accuracy_test = np.empty(ngenes)
     for i in range(ngenes):
-        cluster_assignments = classify_cells(
-            exons_matrix, cluster_means, gene_set[:i], gene_names)
-        accuracy[i] = np.mean(cluster_assignments == cluster_ids)
-    plt.plot(accuracy)
+        cluster_assignments_train = classify_cells(
+            train_set['exons_matrix'],
+            train_set['cluster_means'],
+            gene_set[:i], gene_names
+        )
+        accuracy_train[i] = np.mean(cluster_assignments_train == train_set['cluster_ids'])
+        cluster_assignments_test = classify_cells(
+            test_set['exons_matrix'],
+            train_set['cluster_means'],
+            gene_set[:i], gene_names
+        )
+        accuracy_test[i] = np.mean(cluster_assignments_test == test_set['cluster_ids'])
+
+    plt.plot(accuracy_train)
+    plt.plot(accuracy_test)
     plt.xlabel('# genes')
     plt.ylabel('accuracy')
     plt.show()
+    return accuracy_train, accuracy_test
 
 
 def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
@@ -400,12 +407,43 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
     return c
 
 
+def train_test_split(exons_df, classify_by, gene_filter, efficiency=0.01):
+    train = {}
+    test = {}
+    train['exons_matrix'], train['cluster_ids'], train['cluster_means'], cluster_labels = compute_means(
+        exons_df.iloc[::2],
+        classify_by=classify_by,
+        gene_filter=gene_filter
+    )
+    train['exons_matrix'], train['cluster_means'] = resample_counts(
+        train['exons_matrix'], train['cluster_means'], efficiency=efficiency
+    )
+    test['exons_matrix'], test['cluster_ids'], test['cluster_means'], cluster_labels = compute_means(
+        exons_df.iloc[1::2],
+        classify_by=classify_by,
+        gene_filter=gene_filter
+    )
+    test['exons_matrix'], test['cluster_means'] = resample_counts(
+        test['exons_matrix'], test['cluster_means'], efficiency=efficiency
+    )
+    return train, test, cluster_labels
+
+
 def main():
     datapath = '/Users/znamenp/data/mouse_VISp_gene_expression_matrices_2018-06-14/'
-    exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_tasic_2018(datapath)
-
-    #datapath = '/Users/znamenp/data/'
-    #exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_yao_2021(datapath)
+    exons_df, gene_names = load_data_tasic_2018(datapath)
+    exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
+        exons_df,
+        classify_by='cluster',
+        gene_filter='\d'
+    )
+    # datapath = '/Users/znamenp/data/'
+    # exons_df, gene_names  = load_data_yao_2021(datapath)
+    # exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
+    #     exons_df,
+    #     classify_by='cluster_label',
+    #     gene_filter='gene_'
+    # )
     gene_set = [ 'Slc17a7', 'Gad1', 'Fezf2', 'Enpp2', 'Pvalb', 'Sst', 'Npy', 'Htr3a', 'Foxp2',
          'Rorb', 'Pcp4', 'Rab3b', 'Rgs4', 'Cdh13', 'Cck', 'Kcnip4', 'Igfbp4', 'Cnr1',
          'Serpini1', 'Sema3e', 'Thsd7a', 'Id2', 'Gabra1', 'Crh', 'Cd24a', 'Arpp21',
@@ -425,8 +463,6 @@ def main():
     gene_names = gene_names[include_genes]
     exons_matrix = exons_matrix[:,include_genes]
     cluster_means = cluster_means[:,include_genes]
-    exons_matrix, cluster_means = resample_counts(
-        exons_matrix, cluster_means, efficiency=0.01
-    )
+
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
     return optimize_gene_set(probs, cluster_ids, gene_names)
