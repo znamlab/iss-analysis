@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tqdm import tqdm
 import h5py
 import scipy.sparse as ss
@@ -18,13 +18,14 @@ def filter_genes(gene_names):
     return keep_genes
 
 
-def load_data_tasic_2018(datapath):
+def load_data_tasic_2018(datapath, classify_by='cluster'):
     """
     Load the scRNAseq data from Tasic et al., "Shared and distinct
     transcriptomic cell types across neocortical areas", Nature, 2018.
 
     Args:
         datapath: path to the data
+        classify_by: field to use for classification (Default: 'cluster')
 
     Returns:
         exons_matrix: n cells x n genes matrix (numpy.ndarray) of read counts
@@ -32,7 +33,7 @@ def load_data_tasic_2018(datapath):
         cluster_means: n clusters x n genes matrix (numpy.ndarray) of mean read
             counts for each cluster
         cluster_labels: list of cluster names
-        gene_names: list of gene names
+        gene_names: pandas.Series of gene names
 
     """
     fname_metadata = f'{datapath}mouse_VISp_2018-06-14_samples-columns.csv'
@@ -52,8 +53,6 @@ def load_data_tasic_2018(datapath):
         'GABAergic',
         'Glutamatergic'
     ]
-    # field to use for classification
-    classify_by = 'cluster'
     # get rid of low quality cells etc
     exons_subset = exons_df[exons_df['class'].isin(include_classes)]
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('ALM')]
@@ -74,8 +73,26 @@ def load_data_tasic_2018(datapath):
     return exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names
 
 
-def load_data_yao_2021(datapath):
+def load_data_yao_2021(datapath, classify_by='cluster_label'):
+    """
+    Load the scRNAseq data from Yao et al., "A taxonomy of transcriptomic cell
+    types across the isocortex and hippocampal formation", Cell, 2021.
+
+    Args:
+        datapath: path to the data
+        classify_by: field to use for classification (Default: 'cluster_label')
+
+    Returns:
+        exons_matrix: n cells x n genes matrix (numpy.ndarray) of read counts
+        cluster_ids: numpy.array of cluster assignments from the cell metadata
+        cluster_means: n clusters x n genes matrix (numpy.ndarray) of mean read
+            counts for each cluster
+        cluster_labels: list of cluster names
+        gene_names: pandas.Series of gene names
+
+    """
     def extract_sparse_matrix(h5f, data_path):
+        """ Load HDF5 data as a sparse matrix """
         data = h5f[data_path]
         x = data['x']
         i = data['i']
@@ -124,7 +141,6 @@ def load_data_yao_2021(datapath):
     exons_df['sample_name'] = samples
     exons_df = metadata.join(exons_df.set_index('sample_name'), on='sample_name')
     exons_matrix = exons_df.filter(regex='gene_').to_numpy()
-    classify_by = 'cluster_label'
 
     expression_by_cluster = exons_df.groupby([classify_by]).mean().filter(regex='gene_')
     cluster_means = expression_by_cluster.to_numpy()   # n clusters x n genes matrix
@@ -301,7 +317,7 @@ def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(), niter
     return include_genes, gene_set_history, accuracy_history
 
 
-def classify_cells(exons_matrix, cluster_means, gene_set, gene_names, nu=0):
+def classify_cells(exons_matrix, cluster_means, gene_set, gene_names, nu=0.001):
     """
     Classify cells using a provided gene set.
 
@@ -322,12 +338,27 @@ def classify_cells(exons_matrix, cluster_means, gene_set, gene_names, nu=0):
     include_genes = np.isin(np.array(gene_names), gene_set)
     cell_probs = np.empty((exons_matrix.shape[0], cluster_means.shape[0]))
     for i, cluster in enumerate(cluster_means):
-        cell_probs[:,i] = lognbinom(exons_matrix[:, include_genes], cluster + nu).sum(axis=1)
+        cell_probs[:,i] = lognbinom(exons_matrix[:, include_genes], cluster[include_genes] + nu).sum(axis=1)
     cluster_assignments = cell_probs.argmax(axis=1)
     return cluster_assignments
 
 
-def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels):
+def evaluate_gene_set(exons_matrix, cluster_means, gene_set, gene_names, cluster_ids):
+    """ Plot classification accuracy while incrementally growing the gene set """
+    ngenes = len(gene_set)
+    accuracy = np.empty(ngenes)
+    for i in range(ngenes):
+        cluster_assignments = classify_cells(
+            exons_matrix, cluster_means, gene_set[:i], gene_names)
+        accuracy[i] = np.mean(cluster_assignments == cluster_ids)
+    plt.plot(accuracy)
+    plt.xlabel('# genes')
+    plt.ylabel('accuracy')
+    plt.show()
+
+
+def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
+                          display_counts=True):
     """
     Plot a confusion matrix for the provided cluster assignments.
 
@@ -335,6 +366,8 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels):
         cluster_ids: numpy.array of "true" cluster ids
         cluster_assignments: numpy.array of cluster assignments
         cluster_labels: list of cluster names
+        display_counts: (Default: True) whether to show counts or normalized
+            proportions
 
     Returns:
         Confusion matrix
@@ -343,23 +376,36 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels):
     c = confusion_matrix(
         cluster_ids,
         cluster_assignments,
-        normalize='true'
     )
 
-    with plt.rc_context({'axes.edgecolor':'white', 'xtick.color':'white', 'ytick.color':'white'}):
-        plt.figure(figsize=(25,25))
-        plt.imshow(c)
-        plt.xticks(range(len(cluster_labels)), cluster_labels, rotation=90)
-        plt.yticks(range(len(cluster_labels)), cluster_labels)
-
+    if display_counts:
+        normalize = 'true'
+        include_values = True
+    else:
+        normalize = None
+        include_values = False
+    plt.figure(figsize=(10,10))
+    ax = plt.subplot(111)
+    ConfusionMatrixDisplay.from_predictions(
+        cluster_ids,
+        cluster_assignments,
+        display_labels=cluster_labels,
+        xticks_rotation='vertical',
+        cmap='Blues',
+        ax=ax,
+        normalize=normalize,
+        include_values=include_values
+    )
+    plt.show()
     return c
+
 
 def main():
     datapath = '/Users/znamenp/data/mouse_VISp_gene_expression_matrices_2018-06-14/'
-    # exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_tasic_2018(datapath)
+    exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_tasic_2018(datapath)
 
-    datapath = '/Users/znamenp/data/'
-    exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_yao_2021(datapath)
+    #datapath = '/Users/znamenp/data/'
+    #exons_matrix, cluster_ids, cluster_means, cluster_labels, gene_names = load_data_yao_2021(datapath)
     gene_set = [ 'Slc17a7', 'Gad1', 'Fezf2', 'Enpp2', 'Pvalb', 'Sst', 'Npy', 'Htr3a', 'Foxp2',
          'Rorb', 'Pcp4', 'Rab3b', 'Rgs4', 'Cdh13', 'Cck', 'Kcnip4', 'Igfbp4', 'Cnr1',
          'Serpini1', 'Sema3e', 'Thsd7a', 'Id2', 'Gabra1', 'Crh', 'Cd24a', 'Arpp21',
@@ -384,5 +430,3 @@ def main():
     )
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
     return optimize_gene_set(probs, cluster_ids, gene_names)
-
-
