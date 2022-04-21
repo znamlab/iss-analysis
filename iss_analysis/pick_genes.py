@@ -314,17 +314,21 @@ def main(savepath, *, efficiency=0.01, datapath='/camp/lab/znamenskiyp/home/shar
         datapath (str): location of reference data
 
     """
+    print('loading reference data...')
     exons_df, gene_names = load_data_tasic_2018(datapath)
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
         exons_df,
         classify_by='cluster',
         gene_filter='\d'
     )
+    print('resampling reference data...')
     exons_matrix, cluster_means = resample_counts(exons_matrix, cluster_means, efficiency=efficiency)
-
+    print('computing cluster probabilities...')
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
+    print('optimizing gene set...')
     include_genes, gene_set_history, accuracy_history = optimize_gene_set(probs, cluster_ids, gene_names)
     timestr = time.strftime("%Y%m%d_%H%M%S")
+    print(gene_names[include_genes])
     np.savez(
         f'{savepath}genes_{efficiency}_{timestr}.npz',
         include_genes=include_genes,
