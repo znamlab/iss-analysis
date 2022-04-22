@@ -15,7 +15,7 @@ def filter_genes(gene_names):
     return keep_genes
 
 
-def load_data_tasic_2018(datapath):
+def load_data_tasic_2018(datapath, filter_neurons=True):
     """
     Load the scRNAseq data from Tasic et al., "Shared and distinct
     transcriptomic cell types across neocortical areas", Nature, 2018.
@@ -50,11 +50,15 @@ def load_data_tasic_2018(datapath):
         'Glutamatergic'
     ]
     # get rid of low quality cells etc
-    exons_subset = exons_df[exons_df['class'].isin(include_classes)]
+    if filter_neurons:
+        exons_subset = exons_df[exons_df['class'].isin(include_classes)]
+    else:
+        exons_subset = exons_df
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('ALM')]
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('Doublet')]
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('Batch')]
     exons_subset = exons_subset[~exons_subset['cluster'].str.contains('Low Quality')]
+    exons_subset = exons_subset[~exons_subset['subclass'].str.contains('High Intronic')]
 
     return exons_subset, gene_names
 

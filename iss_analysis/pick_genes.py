@@ -145,7 +145,8 @@ def compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001):
     return cluster_probs
 
 
-def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(), niter=100):
+def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(),
+                      niter=100, subsample_cells=1):
     """
     Iteratively optimize the gene set to maximize classification accuracy.
 
@@ -162,6 +163,8 @@ def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(), niter
         gene_set: list of genes to include at the start of optimization. Optional.
             Default: empty list.
         niter: number of iterations. Optional, default: 100.
+        subsample_cells: whether to subsample cells on each iteration. If <1,
+            then a given fraction of cells will be selected.
 
     Returns:
         Boolean numpy.array of included genes at the end of optimization.
@@ -173,11 +176,19 @@ def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(), niter
     accuracy_history = []
     include_genes = np.isin(np.array(gene_names), gene_set)
     for i in range(niter):
-        b, accuracy = next_best_gene(include_genes, cluster_probs, cluster_ids)
+        if subsample_cells < 1:
+            cell_idx = np.random.rand(cluster_probs.shape[0]) < subsample_cells
+            b, accuracy = next_best_gene(include_genes, cluster_probs[cell_idx,:,:], cluster_ids[cell_idx])
+        else:
+            b, accuracy = next_best_gene(include_genes, cluster_probs, cluster_ids)
+
         include_genes[b] = True
         print(f'added {gene_names.iloc[b]}, accuracy = {accuracy}')
         if i > 0:
-            r, accuracy = remove_bad_gene(include_genes, cluster_probs, cluster_ids)
+            if subsample_cells < 1:
+                r, accuracy = remove_bad_gene(include_genes, cluster_probs[cell_idx,:,:], cluster_ids[cell_idx])
+            else:
+                r, accuracy = remove_bad_gene(include_genes, cluster_probs, cluster_ids)
             if r is not None:
                 include_genes[r] = False
                 print(f'removed {gene_names.iloc[r]}, accuracy = {accuracy}')
@@ -304,7 +315,9 @@ def train_test_split(exons_df, classify_by, gene_filter, efficiency=0.01):
     return train, test, cluster_labels
 
 
-def main(savepath, *, efficiency=0.01, datapath='/camp/lab/znamenskiyp/home/shared/resources/allen2018/'):
+def main(savepath, *, efficiency=0.01,
+         datapath='/camp/lab/znamenskiyp/home/shared/resources/allen2018/',
+         subsample=1, classify='cluster'):
     """
     Optimize gene set for cell classification.
 
@@ -312,25 +325,30 @@ def main(savepath, *, efficiency=0.01, datapath='/camp/lab/znamenskiyp/home/shar
         savepath (str): where to save output
         efficiency (float): simulated efficiency of in situ sequencing
         datapath (str): location of reference data
+        subsample (float): whether to subsample cells on each iteration of
+            gene selection
+        classify (str): which field to use for classification. Default: 'cluster'
 
     """
-    print('loading reference data...')
+    print('loading reference data...', flush=True)
     exons_df, gene_names = load_data_tasic_2018(datapath)
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
         exons_df,
-        classify_by='cluster',
+        classify_by=classify,
         gene_filter='\d'
     )
-    print('resampling reference data...')
+    print('resampling reference data...', flush=True)
     exons_matrix, cluster_means = resample_counts(exons_matrix, cluster_means, efficiency=efficiency)
-    print('computing cluster probabilities...')
+    print('computing cluster probabilities...', flush=True)
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
-    print('optimizing gene set...')
-    include_genes, gene_set_history, accuracy_history = optimize_gene_set(probs, cluster_ids, gene_names)
+    print('optimizing gene set...', flush=True)
+    include_genes, gene_set_history, accuracy_history = optimize_gene_set(
+        probs, cluster_ids, gene_names, subsample_cells=subsample
+    )
     timestr = time.strftime("%Y%m%d_%H%M%S")
     print(gene_names[include_genes])
     np.savez(
-        f'{savepath}genes_{efficiency}_{timestr}.npz',
+        f'{savepath}genes_{classify}_e{efficiency}_s{subsample}_{timestr}.npz',
         include_genes=include_genes,
         gene_set_history=gene_set_history,
         accuracy_history=accuracy_history,
