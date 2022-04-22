@@ -272,10 +272,10 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
     )
 
     if display_counts:
-        normalize = 'true'
+        normalize = None
         include_values = True
     else:
-        normalize = None
+        normalize = 'true'
         include_values = False
     plt.figure(figsize=(10,10))
     ax = plt.subplot(111)

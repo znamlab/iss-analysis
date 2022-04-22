@@ -1,1 +1,3 @@
-from .classify import *
+from . import classify
+from . import pick_genes
+from . import io
