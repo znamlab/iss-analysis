@@ -39,8 +39,7 @@ def resample_counts(exons_matrix, cluster_means, efficiency=0.01):
     """
     assert 0 < efficiency <= 1
     cluster_means = cluster_means * efficiency
-    #Interesting error, on Windows np.random.binomial doesnt work with 64 bit input. Force it to 32 bit
-    exons_matrix = np.random.binomial(n=exons_matrix.astype('int32'), p=efficiency)
+    exons_matrix = np.random.binomial(n=exons_matrix, p=efficiency)
     return exons_matrix, cluster_means
 
 
@@ -317,7 +316,7 @@ def train_test_split(exons_df, classify_by, gene_filter, efficiency=0.01):
 
 
 def main(savepath, *, efficiency=0.01,
-         datapath='C:/Users/Alex/PhD_data/allen2018/',
+         datapath='/camp/lab/znamenskiyp/home/shared/resources/allen2018/',
          subsample=1, classify='cluster'):
     """
     Optimize gene set for cell classification.

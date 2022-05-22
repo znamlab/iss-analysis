@@ -19,7 +19,8 @@ setup(
         'pciSeq',
         'h5py',
         'defopt',
-        'pciSeq'
+        'pciSeq',
+        'dask'
     ],
     entry_points={
         'console_scripts': [

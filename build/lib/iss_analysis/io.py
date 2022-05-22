@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import scipy.sparse as ss
 import h5py
-#from .pick_genes import compute_means
+from .pick_genes import compute_means
 
 
 def load_data_tasic_2018(datapath, filter_neurons=True):
@@ -131,10 +131,13 @@ def filter_genes(gene_names):
     genes_Gm = np.array([ re.search('Gm\d', s) is not None for s in gene_names ])
     genes_LOC = np.array([ re.search('LOC\d', s) is not None for s in gene_names ])
     genes_AA = np.array([ re.search('^[A-Z]{2}\d*$', s) is not None for s in gene_names ])
+    keep_genes = np.logical_not(genes_Rik + genes_Gm + genes_LOC + genes_AA)
     
-    #get rid of all genes below a certain read threshold
-    filtered_genes = np.array(np.load("C:/Users/Alex/PhD_data/allen2018/low_genes.npy", allow_pickle=True))
-    genes_low = np.array([gene not in filtered_genes for gene in gene_names])
-    keep_genes = np.logical_not(genes_Rik + genes_Gm + genes_LOC + genes_AA + genes_low)
-
+    #Pseudocode for filtering out genes that are below a mean read threshold across all clusters
+    genes_lowcount = np.array()
+    _, _, cluster_means, _ = compute_means(load_data_tasic_2018('/camp/lab/znamenskiyp/home/shared/resources/allen2018/'), 'cluster') # n clusters x n genes matrix
+    for gene in gene_names:
+        if np.max(cluster_means[gene] < gene_threshold:
+            genes_lowcount.append(gene)
+    keep_genes = np.logical_not(genes_Rik + genes_Gm + genes_LOC + genes_AA + genes_lowcount)
     return keep_genes
