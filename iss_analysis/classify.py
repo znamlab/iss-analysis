@@ -15,22 +15,14 @@ def classify_cells(masks_file, spots_data, ref_data, opts=None, filter_neurons=T
         opts['MisreadDensity'] = 0.0000001
         opts['SpotReg'] = 0.01
 
-    masks = np.load(masks_file, allow_pickle=True).item()['masks']
-    with np.load(spots_data, allow_pickle=True) as data:
-        rolony_locations = data['rolony_locations'].tolist()
-        rolony_genes = data['gene_names'].tolist()
-    for rolony_location, gene_name in zip(rolony_locations, rolony_genes):
-        rolony_location['Gene'] = gene_name
-    spots = pd.concat(rolony_locations, ignore_index=True)
-    rolony_genes.remove('Ccn2')
-    rolony_genes.remove('Tafa1')
-    rolony_genes.remove('Tafa2')
-    spots = spots[(spots['Gene'] != 'Ccn2') & (spots['Gene'] != 'Tafa1') & (spots['Gene'] != 'Tafa2')]
-
+    masks = np.load(masks_file, allow_pickle=True)
+    spots = pd.read_pickle(spots_data)
+    spots.rename(columns = {'gene':'Gene'}, inplace = True)
+    gene_names = spots['Gene'].unique()
     exons_df, genes = load_data_tasic_2018(ref_data, filter_neurons=filter_neurons)
     sc_data = exons_df.set_index(classify_by).filter(regex='\d').set_axis(genes, axis=1, inplace=False)
 
-    cell_data, gene_data = pci.fit(spots, coo_matrix(masks), sc_data[rolony_genes].T, opts=opts)
+    cell_data, gene_data = pci.fit(spots, coo_matrix(masks), sc_data[gene_names].T, opts=opts)
     cell_data['BestClass'] = cell_data.apply(lambda r: r['ClassName'][np.argmax(r['Prob'])], axis=1)
     cell_data['BestProb'] = cell_data.apply(lambda r: np.max(r['Prob']), axis=1)
     return cell_data, gene_data
