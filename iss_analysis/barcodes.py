@@ -78,6 +78,51 @@ def get_barcodes(
     barcode_spots = all_barcode_spots[labels == 1].copy()
     return barcode_spots, gmm, all_barcode_spots
 
+
+def correct_barcode_sequences(spots, max_edit_distance=2):
+    """Error correct barcode sequences.
+
+    Args:
+        spots (pandas.DataFrame): DataFrame of spots with a "sequence" column.
+        max_edit_distance (int): Maximum edit distance for correction. Default is 2.
+    
+    Returns:
+        pandas.DataFrame: DataFrame with corrected sequences and bases.
+    """
+    
+    sequences = np.stack(spots["sequence"].to_numpy())
+    unique_sequences, counts = np.unique(sequences, axis=0, return_counts=True)
+    # sort sequences according to abundance
+    order = np.flip(np.argsort(counts))
+    unique_sequences = unique_sequences[order]
+    counts = counts[order]
+
+    corrected_sequences = unique_sequences.copy()
+    reassigned = np.zeros(corrected_sequences.shape[0])
+    for i, sequence in enumerate(unique_sequences):
+        # if within edit distance and lower in the list (i.e. lower abundance),
+        # then update the sequence
+        edit_distance = np.sum((unique_sequences - sequence) != 0, axis=1)
+        sequences_to_correct = np.logical_and(
+            edit_distance <= max_edit_distance, np.logical_not(reassigned)
+        )
+        sequences_to_correct[: i + 1] = False
+        corrected_sequences[sequences_to_correct, :] = sequence
+        reassigned[sequences_to_correct] = True
+
+    for original_sequence, new_sequence in zip(unique_sequences, corrected_sequences):
+        if not np.array_equal(original_sequence, new_sequence):
+            sequences[
+                np.all((sequences - original_sequence) == 0, axis=1), :
+            ] = new_sequence
+
+    spots["corrected_sequence"] = [seq for seq in sequences]
+    spots["corrected_bases"] = [
+        "".join(BASES[seq]) for seq in spots["corrected_sequence"]
+    ]
+    return spots
+
+
 if __name__ == "__main__":
     barcode_spots, gmm, all_barcode_spots = get_barcodes(
         acquisition_folder="becalia_rabies_barseq/BRAC8498.3e",
