@@ -5,6 +5,7 @@ from sklearn.mixture import GaussianMixture
 import iss_preprocess as issp
 import iss_analysis as issa
 
+
 def get_barcodes(
     acquisition_folder,
     mean_intensity_threshold=0.01,
@@ -15,11 +16,11 @@ def get_barcodes(
     Get barcode spots from the given data path.
 
     Args:
-        acquisiton_folder (str): The relative path to the data, either a single chamber 
+        acquisiton_folder (str): The relative path to the data, either a single chamber
             or a mouse folder
-        mean_intensity_threshold (float): The threshold for mean intensity. Default is 
+        mean_intensity_threshold (float): The threshold for mean intensity. Default is
             0.01.
-        dot_product_score_threshold (float): The threshold for dot product score. 
+        dot_product_score_threshold (float): The threshold for dot product score.
             Default is 0.2.
         mean_score_threshold (float): The threshold for mean score. Default is 0.75.
 
@@ -32,24 +33,26 @@ def get_barcodes(
     if not main_folder.exists():
         raise FileNotFoundError(f"Folder {main_folder} does not exist")
 
-    if 'chamber' in main_folder.name:  # single chamber
+    if "chamber" in main_folder.name:  # single chamber
         chambers = [acquisition_folder]
     else:  # mouse folder
         chambers = list(main_folder.glob("chamber_*"))
         # make the path relative to project, like acquisition_folder
-        root = str(main_folder)[:-len(acquisition_folder)]
+        root = str(main_folder)[: -len(acquisition_folder)]
         chambers = [str(chamber.relative_to(root)) for chamber in chambers]
-    
+
     for chamber in chambers:
         ops = issp.io.load.load_ops(chamber)
         data_folder = issp.io.get_processed_path(chamber)
         all_barcode_spots = []
         if "use_rois" not in ops:
-            rois = issp.io.get_roi_dimensions(chamber)[:,0]
+            rois = issp.io.get_roi_dimensions(chamber)[:, 0]
         else:
             rois = ops["use_rois"]
         for roi in rois:
-            barcode_spots = pd.read_pickle(data_folder / f"barcode_round_spots_{roi}.pkl")
+            barcode_spots = pd.read_pickle(
+                data_folder / f"barcode_round_spots_{roi}.pkl"
+            )
             barcode_spots["roi"] = roi
             barcode_spots["chamber"] = chamber.split("/")[-1]
             all_barcode_spots.append(barcode_spots)
@@ -85,11 +88,11 @@ def correct_barcode_sequences(spots, max_edit_distance=2):
     Args:
         spots (pandas.DataFrame): DataFrame of spots with a "sequence" column.
         max_edit_distance (int): Maximum edit distance for correction. Default is 2.
-    
+
     Returns:
         pandas.DataFrame: DataFrame with corrected sequences and bases.
     """
-    
+
     sequences = np.stack(spots["sequence"].to_numpy())
     unique_sequences, counts = np.unique(sequences, axis=0, return_counts=True)
     # sort sequences according to abundance
