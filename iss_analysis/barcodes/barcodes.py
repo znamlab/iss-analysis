@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.mixture import GaussianMixture
+from tqdm import tqdm
 
 import iss_preprocess as issp
+from iss_preprocess.call import BASES
 import iss_analysis as issa
 
 
@@ -40,11 +42,11 @@ def get_barcodes(
         # make the path relative to project, like acquisition_folder
         root = str(main_folder)[: -len(acquisition_folder)]
         chambers = [str(chamber.relative_to(root)) for chamber in chambers]
-
+    all_barcode_spots = []
     for chamber in chambers:
         ops = issp.io.load.load_ops(chamber)
         data_folder = issp.io.get_processed_path(chamber)
-        all_barcode_spots = []
+
         if "use_rois" not in ops:
             rois = issp.io.get_roi_dimensions(chamber)[:, 0]
         else:
@@ -73,28 +75,47 @@ def get_barcodes(
     data = all_barcode_spots[metrics].values[::skip]
 
     # Perform GMM with two clusters, 0 low values, 1 high values
-    means_init = np.nanpercentile(data, [1, 99], axis=0)
-    gmm = GaussianMixture(n_components=2, means_init=means_init)
+    means_init = np.nanpercentile(data, [1, 20, 99], axis=0)
+    gmm = GaussianMixture(n_components=3, means_init=means_init)
     gmm.fit(data)
 
     labels = gmm.predict(all_barcode_spots[metrics].values)
-    barcode_spots = all_barcode_spots[labels == 1].copy()
+    all_barcode_spots["gmm_label"] = labels
+    barcode_spots = all_barcode_spots[labels == len(means_init) - 1].copy()
     return barcode_spots, gmm, all_barcode_spots
 
 
-def correct_barcode_sequences(spots, max_edit_distance=2):
+def correct_barcode_sequences(
+    spots, max_edit_distance=2, weights=None, return_merge_dict=False, verbose=True
+):
     """Error correct barcode sequences.
 
     Args:
         spots (pandas.DataFrame): DataFrame of spots with a "sequence" column.
         max_edit_distance (int): Maximum edit distance for correction. Default is 2.
+        weights (numpy.ndarray): Weights for the sequences. Default is None.
+        return_merge_dict (bool): Whether to return a dictionary with the original
+            sequences as keys and the corrected sequences as values. Default is False.
+        verbose (bool): Whether to print the progress. Default is True.
 
     Returns:
         pandas.DataFrame: DataFrame with corrected sequences and bases.
+        dict: Dictionary with the original sequences as keys and the corrected
+            sequences as values. Only returned if return_merge_dict is True.
+
     """
 
     sequences = np.stack(spots["sequence"].to_numpy())
+    if weights is None:
+        weights = np.ones(sequences.shape[1])
+    else:
+        assert np.array(weights).shape == (
+            sequences.shape[1],
+        ), "Weights must have the same length as the sequences"
+
     unique_sequences, counts = np.unique(sequences, axis=0, return_counts=True)
+    if verbose:
+        print(f"{unique_sequences.shape[0]} unique sequences found.", flush=True)
     # sort sequences according to abundance
     order = np.flip(np.argsort(counts))
     unique_sequences = unique_sequences[order]
@@ -102,35 +123,73 @@ def correct_barcode_sequences(spots, max_edit_distance=2):
 
     corrected_sequences = unique_sequences.copy()
     reassigned = np.zeros(corrected_sequences.shape[0])
-    for i, sequence in enumerate(unique_sequences):
+    if return_merge_dict:
+        merge_dict = {}
+
+    iterator = enumerate(unique_sequences)
+    if verbose:
+        print("Finding matching sequences ...", flush=True)
+        iterator = tqdm(iterator, total=len(unique_sequences))
+    for i, sequence in iterator:
         # if within edit distance and lower in the list (i.e. lower abundance),
         # then update the sequence
-        edit_distance = np.sum((unique_sequences - sequence) != 0, axis=1)
+        differences = ((unique_sequences - sequence) != 0).astype(float)
+        edit_distance = np.sum(differences * weights, axis=1)
+
         sequences_to_correct = np.logical_and(
             edit_distance <= max_edit_distance, np.logical_not(reassigned)
         )
-        sequences_to_correct[: i + 1] = False
+        sequences_to_correct[: i + 1] = False  # the first have already been corrected
         corrected_sequences[sequences_to_correct, :] = sequence
+        if return_merge_dict:
+            merge_dict[tuple(sequence)] = [unique_sequences[sequences_to_correct], []]
         reassigned[sequences_to_correct] = True
 
-    for original_sequence, new_sequence in zip(unique_sequences, corrected_sequences):
+    iterator = zip(unique_sequences, corrected_sequences)
+    if verbose:
+        print(
+            f"{len(np.unique(corrected_sequences, axis=0))} unique sequences after correction.",
+            flush=True,
+        )
+        print(f"{int(np.sum(reassigned))} sequences corrected.")
+        print("Correcting sequences ...", flush=True)
+        iterator = tqdm(iterator, total=len(unique_sequences))
+    for original_sequence, new_sequence in iterator:
         if not np.array_equal(original_sequence, new_sequence):
-            sequences[
-                np.all((sequences - original_sequence) == 0, axis=1), :
-            ] = new_sequence
+            to_change = np.all((sequences - original_sequence) == 0, axis=1)
+            sequences[to_change, :] = new_sequence
+            if return_merge_dict:
+                merge_dict[tuple(original_sequence)][1].append(to_change.sum())
 
+    if verbose:
+        print("Adding to spots ...", flush=True)
     spots["corrected_sequence"] = [seq for seq in sequences]
     spots["corrected_bases"] = [
         "".join(BASES[seq]) for seq in spots["corrected_sequence"]
     ]
+    if return_merge_dict:
+        return spots, merge_dict
     return spots
 
 
 if __name__ == "__main__":
+    data_path = "becalia_rabies_barseq/BRAC8498.3e"
+    analysis_folder = issp.io.get_processed_path(data_path) / "analysis"
+    analysis_folder.mkdir(exist_ok=True)
     barcode_spots, gmm, all_barcode_spots = get_barcodes(
-        acquisition_folder="becalia_rabies_barseq/BRAC8498.3e",
+        acquisition_folder=data_path,
         mean_intensity_threshold=0.01,
         dot_product_score_threshold=0.2,
         mean_score_threshold=0.75,
     )
+    from iss_analysis.barcodes.diagnostics import plot_gmm_clusters
+
+    pg = plot_gmm_clusters(
+        all_barcode_spots,
+        gmm,
+        thresholds=dict(mean_intensity=0.01, dot_product_score=0.2, mean_score=0.75),
+    )
+    fig = pg.figure
+    fig.savefig(analysis_folder / "gmm_clusters.png")
+
     print(barcode_spots.head())
