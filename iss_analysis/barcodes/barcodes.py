@@ -173,7 +173,11 @@ def correct_barcode_sequences(
 
 
 def error_per_round(
-    spot_df, edit_distance=1, spot_count_threshold=30, sequence_column="bases"
+    spot_df,
+    edit_distance=1,
+    spot_count_threshold=30,
+    sequence_column="sequence",
+    filter_column="bases",
 ):
     """Calculate the error per round for each barcode.
 
@@ -183,6 +187,8 @@ def error_per_round(
         spot_count_threshold (int): Minimum number of spots for a barcode to be
             considered.
         sequence_column (str): Name of the column with the sequences. Default is
+            'sequence'.
+        filter_column (str): Name of the column to filter the sequences. Default is
             'bases'.
 
     Returns:
@@ -190,7 +196,7 @@ def error_per_round(
 
     """
     # count the number of unique sequence for each rolonie
-    rol_cnt = spot_df[sequence_column].value_counts()
+    rol_cnt = spot_df[filter_column].value_counts()
     good = rol_cnt[rol_cnt.values > 30].index
 
     print(f"Found {len(good)} barcodes with more than {spot_count_threshold} spots")
@@ -203,7 +209,7 @@ def error_per_round(
             all_errors[chamber] = dict()
             for roi, df in cdf.groupby("roi"):
                 pbar.set_description(f"Processing {chamber}, roi {roi}")
-                sequences = np.stack(df["sequence"].to_numpy())
+                sequences = np.stack(df[sequence_column].to_numpy())
                 error_along_sequence = np.zeros((len(good), sequences.shape[1]))
                 for ibar, barcode in enumerate(good):
                     seq = [base_list.index(b) for b in barcode]
