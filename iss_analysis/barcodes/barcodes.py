@@ -170,3 +170,49 @@ def correct_barcode_sequences(
     if return_merge_dict:
         return spots, merge_dict
     return spots
+
+
+def error_per_round(
+    spot_df, edit_distance=1, spot_count_threshold=30, sequence_column="bases"
+):
+    """Calculate the error per round for each barcode.
+
+    Args:
+        spot_df (pd.DataFrame): DataFrame with the spots.
+        edit_distance (int): Maximum edit distance for correction. Default is 1.
+        spot_count_threshold (int): Minimum number of spots for a barcode to be
+            considered.
+        sequence_column (str): Name of the column with the sequences. Default is
+            'bases'.
+
+    Returns:
+        dict: Dictionary with the errors per round.
+
+    """
+    # count the number of unique sequence for each rolonie
+    rol_cnt = spot_df[sequence_column].value_counts()
+    good = rol_cnt[rol_cnt.values > 30].index
+
+    print(f"Found {len(good)} barcodes with more than {spot_count_threshold} spots")
+    ch_gp = spot_df.groupby("chamber")
+    nroi_per_ch = [len(gp["roi"].unique()) for _, gp in ch_gp]
+    with tqdm(total=sum(nroi_per_ch) * len(good)) as pbar:
+        all_errors = dict()
+        base_list = list(BASES)
+        for chamber, cdf in spot_df.groupby("chamber"):
+            all_errors[chamber] = dict()
+            for roi, df in cdf.groupby("roi"):
+                pbar.set_description(f"Processing {chamber}, roi {roi}")
+                sequences = np.stack(df["sequence"].to_numpy())
+                error_along_sequence = np.zeros((len(good), sequences.shape[1]))
+                for ibar, barcode in enumerate(good):
+                    seq = [base_list.index(b) for b in barcode]
+                    diff = sequences - seq
+                    edits = np.sum(diff != 0, axis=1)
+                    actual_errs = edits <= edit_distance
+                    bad_barcode = diff[actual_errs]
+                    error_along_sequence[ibar] = np.any(bad_barcode != 0, axis=0)
+                    pbar.update(1)
+                all_errors[chamber][roi] = error_along_sequence
+
+    return all_errors

@@ -1,4 +1,6 @@
 import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_gmm_clusters(all_barcode_spots, gmm, thresholds=None):
@@ -32,3 +34,39 @@ def plot_gmm_clusters(all_barcode_spots, gmm, thresholds=None):
                     continue
                 ax.axvline(th, color="red")
     return pgrid
+
+
+def plot_error_along_sequence(error_dict, nrows=2, plot_matrix=False, **kwargs):
+    """Plot the error along the sequence of the barcode spots.
+
+    Args:
+        error_dict (dict): The dictionary containing the error along the sequence.
+        nrows (int): The number of rows in the plot. Default is 2.
+        plot_matrix (bool): Whether to plot the matrix or the mean. Default is False.
+        **kwargs: Additional keyword arguments for the plot.
+
+    Returns:
+        fig_dict (dict): Dictionary containing the figures for each chamber.
+    """
+    fig_dict = {}
+    for chamber, cdict in error_dict.items():
+        fig = plt.figure(figsize=(10, 5))
+        nrois = len(cdict)
+        ncols = nrois // nrows
+        for iroi, (roi, error_along_sequence) in enumerate(cdict.items()):
+            if iroi:
+                sharex = ax
+                sharey = ax
+            else:
+                sharex = None
+                sharey = None
+            ax = fig.add_subplot(nrows, ncols, iroi + 1, sharex=sharex, sharey=sharey)
+            if plot_matrix:
+                ax.imshow(error_along_sequence, aspect="auto", **kwargs)
+            else:
+                ax.plot(np.mean(error_along_sequence, axis=0), **kwargs)
+            ax.set_title(f"ROI {roi}")
+        fig.suptitle(f"Chamber {chamber}")
+        fig.tight_layout()
+        fig_dict[chamber] = fig
+    return fig_dict
