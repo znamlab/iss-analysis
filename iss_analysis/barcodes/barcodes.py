@@ -170,26 +170,3 @@ def correct_barcode_sequences(
     if return_merge_dict:
         return spots, merge_dict
     return spots
-
-
-if __name__ == "__main__":
-    data_path = "becalia_rabies_barseq/BRAC8498.3e"
-    analysis_folder = issp.io.get_processed_path(data_path) / "analysis"
-    analysis_folder.mkdir(exist_ok=True)
-    barcode_spots, gmm, all_barcode_spots = get_barcodes(
-        acquisition_folder=data_path,
-        mean_intensity_threshold=0.01,
-        dot_product_score_threshold=0.2,
-        mean_score_threshold=0.75,
-    )
-    from iss_analysis.barcodes.diagnostics import plot_gmm_clusters
-
-    pg = plot_gmm_clusters(
-        all_barcode_spots,
-        gmm,
-        thresholds=dict(mean_intensity=0.01, dot_product_score=0.2, mean_score=0.75),
-    )
-    fig = pg.figure
-    fig.savefig(analysis_folder / "gmm_clusters.png")
-
-    print(barcode_spots.head())
