@@ -198,13 +198,15 @@ def error_per_round(
     # count the number of unique sequence for each rolonie
     rol_cnt = spot_df[filter_column].value_counts()
     good = rol_cnt[rol_cnt.values > 30].index
+    # remove the on with a N
+    good = [g for g in good if "N" not in g]
 
     print(f"Found {len(good)} barcodes with more than {spot_count_threshold} spots")
     ch_gp = spot_df.groupby("chamber")
     nroi_per_ch = [len(gp["roi"].unique()) for _, gp in ch_gp]
     with tqdm(total=sum(nroi_per_ch) * len(good)) as pbar:
         all_errors = dict()
-        base_list = list(BASES)
+        base_list = list(BASES) + ["N"]
         for chamber, cdf in spot_df.groupby("chamber"):
             all_errors[chamber] = dict()
             for roi, df in cdf.groupby("roi"):
@@ -212,11 +214,12 @@ def error_per_round(
                 sequences = np.stack(df[sequence_column].to_numpy())
                 error_along_sequence = np.zeros((len(good), sequences.shape[1]))
                 for ibar, barcode in enumerate(good):
-                    seq = [base_list.index(b) for b in barcode]
+                    seq = np.array([base_list.index(b) for b in barcode]).astype(float)
+                    seq[seq == len(base_list)] = np.nan
                     diff = sequences - seq
-                    edits = np.sum(diff != 0, axis=1)
-                    actual_errs = edits <= edit_distance
-                    bad_barcode = diff[actual_errs]
+                    nan_mask = np.logical_not(np.isnan(diff)).astype(float)
+                    diff = (diff != 0) * nan_mask  # put all nan to 0 difference
+                    bad_barcode = diff[np.sum((diff != 0), axis=1) <= edit_distance]
                     error_along_sequence[ibar] = np.any(bad_barcode != 0, axis=0)
                     pbar.update(1)
                 all_errors[chamber][roi] = error_along_sequence
