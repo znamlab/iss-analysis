@@ -76,7 +76,7 @@ def get_barcodes(
 
     # Perform GMM with two clusters, 0 low values, 1 high values
     means_init = np.nanpercentile(data, [1, 20, 99], axis=0)
-    gmm = GaussianMixture(n_components=3, means_init=means_init)
+    gmm = GaussianMixture(n_components=3, means_init=means_init, random_state=123)
     gmm.fit(data)
 
     labels = gmm.predict(all_barcode_spots[metrics].values)
