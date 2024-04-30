@@ -86,17 +86,26 @@ def get_barcodes(
 
 
 def correct_barcode_sequences(
-    spots, max_edit_distance=2, weights=None, return_merge_dict=False, verbose=True
+    spots,
+    max_edit_distance=2,
+    weights=None,
+    minimum_match=None,
+    return_merge_dict=False,
+    verbose=True,
 ):
     """Error correct barcode sequences.
 
     Args:
         spots (pandas.DataFrame): DataFrame of spots with a "sequence" column.
-        max_edit_distance (int): Maximum edit distance for correction. Default is 2.
-        weights (numpy.ndarray): Weights for the sequences. Default is None.
-        return_merge_dict (bool): Whether to return a dictionary with the original
-            sequences as keys and the corrected sequences as values. Default is False.
-        verbose (bool): Whether to print the progress. Default is True.
+        max_edit_distance (int, optional): Maximum edit distance for correction. Default
+            is 2.
+        weights (numpy.ndarray, optional): Weights for the sequences. Default is None.
+        minimum_match (int, optional): Minimum number of matching bases. Default is
+            None.
+        return_merge_dict (bool, optional): Whether to return a dictionary with the
+            original sequences as keys and the corrected sequences as values. Default is
+            False.
+        verbose (bool, optional): Whether to print the progress. Default is True.
 
     Returns:
         pandas.DataFrame: DataFrame with corrected sequences and bases.
@@ -113,7 +122,9 @@ def correct_barcode_sequences(
             sequences.shape[1],
         ), "Weights must have the same length as the sequences"
 
-    unique_sequences, counts = np.unique(sequences, axis=0, return_counts=True)
+    # unique would split NaNs into different sequences, so we replace them by a value
+    seq_no_nan = np.nan_to_num(sequences, nan=4)
+    unique_sequences, counts = np.unique(seq_no_nan, axis=0, return_counts=True)
     if verbose:
         print(f"{unique_sequences.shape[0]} unique sequences found.", flush=True)
     # sort sequences according to abundance
@@ -121,6 +132,14 @@ def correct_barcode_sequences(
     unique_sequences = unique_sequences[order]
     counts = counts[order]
 
+    # move sequences with NaNs to the end so that they cannot match with anything but
+    # other sequences with NaNs
+    nan_sequences = np.sum(unique_sequences == 4, axis=1) > 0
+    unique_sequences = np.concatenate(
+        [unique_sequences[~nan_sequences], unique_sequences[nan_sequences]]
+    )
+
+    # assign outputs
     corrected_sequences = unique_sequences.copy()
     reassigned = np.zeros(corrected_sequences.shape[0])
     if return_merge_dict:
@@ -133,16 +152,23 @@ def correct_barcode_sequences(
     for i, sequence in iterator:
         # if within edit distance and lower in the list (i.e. lower abundance),
         # then update the sequence
-        differences = ((unique_sequences - sequence) != 0).astype(float)
-        edit_distance = np.sum(differences * weights, axis=1)
+        # note that unique_sequences has no NaN but sequence does
+        diff_with_nan = unique_sequences - sequence
+        differences = (diff_with_nan != 0).astype(float)
+        differences[np.isnan(diff_with_nan)] = np.nan
 
+        edit_distance = np.nansum(differences.astype(float) * weights, axis=1)
         sequences_to_correct = np.logical_and(
             edit_distance <= max_edit_distance, np.logical_not(reassigned)
         )
+        if minimum_match is not None:
+            matches = np.sum(diff_with_nan == 0, axis=1) > minimum_match
+            sequences_to_correct = np.logical_and(sequences_to_correct, matches)
+
         sequences_to_correct[: i + 1] = False  # the first have already been corrected
         corrected_sequences[sequences_to_correct, :] = sequence
         if return_merge_dict:
-            merge_dict[tuple(sequence)] = [unique_sequences[sequences_to_correct], []]
+            merge_dict[str(sequence)] = [unique_sequences[sequences_to_correct], []]
         reassigned[sequences_to_correct] = True
 
     iterator = zip(unique_sequences, corrected_sequences)
@@ -156,17 +182,23 @@ def correct_barcode_sequences(
         iterator = tqdm(iterator, total=len(unique_sequences))
     for original_sequence, new_sequence in iterator:
         if not np.array_equal(original_sequence, new_sequence):
-            to_change = np.all((sequences - original_sequence) == 0, axis=1)
-            sequences[to_change, :] = new_sequence
+            to_change = np.all((seq_no_nan - original_sequence) == 0, axis=1)
+            seq_no_nan[to_change, :] = new_sequence
             if return_merge_dict:
-                merge_dict[tuple(original_sequence)][1].append(to_change.sum())
+                merge_dict[str(original_sequence)][1].append(to_change.sum())
 
     if verbose:
         print("Adding to spots ...", flush=True)
-    spots["corrected_sequence"] = [seq for seq in sequences]
+    # seq_no_nan is corrected, but has "4" instead of NaNs. Use that to select bases
+    bases_list = list(BASES) + ["N"]
     spots["corrected_bases"] = [
-        "".join(BASES[seq]) for seq in spots["corrected_sequence"]
+        "".join([bases_list[int(s)] for s in seq]) for seq in seq_no_nan
     ]
+    # but put back nans in the corrected sequences
+    sequences = np.array(seq_no_nan)
+    sequences[sequences == 4] = np.nan
+    spots["corrected_sequence"] = [seq for seq in sequences]
+
     if return_merge_dict:
         return spots, merge_dict
     return spots
