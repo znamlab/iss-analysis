@@ -19,7 +19,6 @@ setup(
         "pciSeq",
         "h5py",
         "defopt",
-        "pciSeq",
     ],
     entry_points={
         "console_scripts": ["pick_genes = iss_analysis.pick_genes:entry_point"]
