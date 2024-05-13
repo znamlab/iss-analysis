@@ -1,10 +1,11 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import iss_preprocess as issp
 from znamutils import slurm_it
 
 
-@slurm_it(conda_env="iss_preprocess", print_job_id=True)
+@slurm_it(conda_env="iss-preprocess", print_job_id=True)
 def get_barcode_in_cells(
     chamber, roi, acq_path, error_corrected_barcodes, save_folder=None
 ):
@@ -18,6 +19,10 @@ def get_barcode_in_cells(
 
     Returns:
         pd.DataFrame: Barcodes in cells."""
+
+    if isinstance(error_corrected_barcodes, str):
+        error_corrected_barcodes = pd.read_pickle(error_corrected_barcodes)
+
     bigmask = issp.pipeline.stitch_registered(
         acq_path + f"/{chamber}",
         prefix="mCherry_1_masks",
@@ -46,6 +51,8 @@ def get_barcode_in_cells(
 
     if save_folder is not None:
         barcode_in_cells.to_pickle(
-            save_folder / f"barcode_in_cells_{chamber}_{roi}.pkl"
+            Path(save_folder) / f"barcode_in_cells_{chamber}_{roi}.pkl"
         )
+        print(f"Saved to {save_folder}")
+    print("Done")
     return barcode_in_cells
