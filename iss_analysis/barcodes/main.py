@@ -64,11 +64,13 @@ def error_correct_acquisition(
         ),
     )
 
+    # overwrite would crash if the dataset doesn't exist yet, we want to run with
+    # conflicts=skip to avoid this and then decide to reload or not
     err_corr_ds = flz.Dataset.from_origin(
         origin_id=mouse.id,
         dataset_type="error_corrected_barcodes",
         flexilims_session=flm_sess,
-        conflicts=conflicts,
+        conflicts=conflicts if conflicts != "overwrite" else "skip",
         extra_attributes=attributes,
         ignore_attributes=["started", "ended"],
     )
