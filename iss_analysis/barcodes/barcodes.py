@@ -45,6 +45,7 @@ def get_barcodes(
         chambers = [acquisition_folder]
     else:  # mouse folder
         chambers = list(main_folder.glob("chamber_*"))
+        chambers = [chamber for chamber in chambers if chamber.is_dir()]
         # make the path relative to project, like acquisition_folder
         root = str(main_folder)[: -len(acquisition_folder)]
         chambers = [str(chamber.relative_to(root)) for chamber in chambers]
@@ -187,7 +188,8 @@ def correct_barcode_sequences(
     iterator = zip(unique_sequences, corrected_sequences)
     if verbose:
         print(
-            f"{len(np.unique(corrected_sequences, axis=0))} unique sequences after correction.",
+            f"{len(np.unique(corrected_sequences, axis=0))} unique sequences"
+            + " after correction.",
             flush=True,
         )
         print(f"{int(np.sum(reassigned))} sequences corrected.")
@@ -208,7 +210,7 @@ def correct_barcode_sequences(
         "".join([bases_list[int(s)] for s in seq]) for seq in seq_no_nan
     ]
     # but put back nans in the corrected sequences
-    sequences = np.array(seq_no_nan)
+    sequences = np.array(seq_no_nan).astype(float)
     sequences[sequences == 4] = np.nan
     spots["corrected_sequence"] = [seq for seq in sequences]
 
