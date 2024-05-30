@@ -69,14 +69,20 @@ def error_correct_acquisition(
         dataset_type="error_corrected_barcodes",
         flexilims_session=flm_sess,
         conflicts=conflicts,
-        extra_arguments=attributes,
+        extra_attributes=attributes,
+        ignore_attributes=["started", "ended"],
     )
-
     if conflicts == "skip" and (err_corr_ds.flexilims_status() == "up-to-date"):
         if verbose:
             print("Reloading error corrected barcode sequences")
         return pd.read_pickle(err_corr_ds.path_full)
 
+    # We need to make sure that the dataset is created to avoid another job
+    # to create the same dataset.
+    err_corr_ds.extra_attributes["started"] = str(pd.Timestamp.now())
+    err_corr_ds.update_flexilims(mode="overwrite")
+    print(f"Started error correcting barcode sequences for {project}/{mouse_name}")
+    print(f"Dataset {err_corr_ds.dataset_name} with ID {err_corr_ds.id}.")
     barcode_spots, gmm, all_barcode_spots = get_barcodes(
         acquisition_folder=f"{project}/{mouse_name}",
         **attributes["get_barcodes"],
@@ -87,6 +93,8 @@ def error_correct_acquisition(
     )
     err_corr_ds.path = err_corr_ds.path.with_suffix(".pkl")
     corrected_spots.to_pickle(err_corr_ds.path_full)
+    # Add a timestamp of end time
+    err_corr_ds.extra_attributes["ended"] = str(pd.Timestamp.now())
     err_corr_ds.update_flexilims(mode="overwrite")
 
     if verbose:
