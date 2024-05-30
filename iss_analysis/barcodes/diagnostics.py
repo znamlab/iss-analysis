@@ -2,8 +2,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-import iss_preprocess as issp
-
 
 def plot_gmm_clusters(all_barcode_spots, gmm, thresholds=None):
     """Plot the clusters of the GMM model on the 4 metrics.
