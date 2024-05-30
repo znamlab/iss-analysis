@@ -10,6 +10,8 @@ from functools import partial
 
 def get_barcodes(
     acquisition_folder,
+    n_components=2,
+    valid_components=None,
     mean_intensity_threshold=0.01,
     dot_product_score_threshold=0.2,
     mean_score_threshold=0.75,
@@ -20,6 +22,10 @@ def get_barcodes(
     Args:
         acquisiton_folder (str): The relative path to the data, either a single chamber
             or a mouse folder
+        n_components (int): The number of clusters for the Gaussian Mixture Model.
+            Default is 2.
+        valid_components (list): The list of valid components. If None, keep only
+            the last. Default is None.
         mean_intensity_threshold (float): The threshold for mean intensity. Default is
             0.01.
         dot_product_score_threshold (float): The threshold for dot product score.
@@ -75,13 +81,20 @@ def get_barcodes(
     data = all_barcode_spots[metrics].values[::skip]
 
     # Perform GMM with two clusters, 0 low values, 1 high values
-    means_init = np.nanpercentile(data, [1, 20, 99], axis=0)
-    gmm = GaussianMixture(n_components=3, means_init=means_init, random_state=123)
+    percentiles = list(np.linspace(1, 30, n_components - 1)) + [99]
+    means_init = np.nanpercentile(data, percentiles, axis=0)
+    gmm = GaussianMixture(
+        n_components=n_components, means_init=means_init, random_state=123
+    )
     gmm.fit(data)
 
     labels = gmm.predict(all_barcode_spots[metrics].values)
     all_barcode_spots["gmm_label"] = labels
-    barcode_spots = all_barcode_spots[labels == len(means_init) - 1].copy()
+    if valid_components is None:
+        valid_components = [n_components - 1]
+    elif not isinstance(valid_components, list):
+        valid_components = [valid_components]
+    barcode_spots = all_barcode_spots[np.isin(labels, valid_components)].copy()
     return barcode_spots, gmm, all_barcode_spots
 
 
