@@ -1,10 +1,10 @@
 import pandas as pd
 import flexiznam as flz
+from pathlib import Path
 from znamutils import slurm_it
 from .barcodes import get_barcodes, correct_barcode_sequences
 
 
-@slurm_it(conda_env="iss-preprocess", print_job_id=True)
 def error_correct_acquisition(
     project,
     mouse_name,
@@ -18,6 +18,7 @@ def error_correct_acquisition(
     minimum_match=None,
     verbose=True,
     conflicts="abort",
+    use_slurm=True,
 ):
     """Error correct barcode sequences for an acquisition.
 
@@ -72,17 +73,61 @@ def error_correct_acquisition(
         flexilims_session=flm_sess,
         conflicts=conflicts if conflicts != "overwrite" else "skip",
         extra_attributes=attributes,
-        ignore_attributes=["started", "ended"],
+        ignore_attributes=["started", "ended", "job_id"],
     )
     if conflicts == "skip" and (err_corr_ds.flexilims_status() == "up-to-date"):
         if verbose:
             print("Reloading error corrected barcode sequences")
         return pd.read_pickle(err_corr_ds.path_full)
+    print(f"Error correcting barcode sequences for {project}/{mouse_name}")
+    err_corr_ds.extra_attributes["started"] = str(pd.Timestamp.now())
+    slurm_folder = Path.home() / "slurm_logs" / project / mouse_name
+    scripts_name = err_corr_ds.dataset_name
 
+    corrected_spots = run_error_correction(
+        dataset_id=err_corr_ds.id,
+        project=project,
+        mouse_name=mouse_name,
+        attributes=attributes,
+        verbose=verbose,
+        use_slurm=use_slurm,
+        slurm_folder=slurm_folder,
+        scripts_name=scripts_name,
+    )
+    if use_slurm:
+        err_corr_ds.extra_attributes["job_id"] = corrected_spots
+        # update already to mark job start and ensure the next one has a different
+        # name
+        err_corr_ds.update_flexilims(mode="overwrite")
+        print(f"Started job {corrected_spots}")
+    return corrected_spots
+
+
+@slurm_it(conda_env="iss-preprocess", print_job_id=True)
+def run_error_correction(
+    dataset_id,
+    project,
+    mouse_name,
+    attributes,
+    verbose=True,
+):
+    """Run error correction for barcode sequences.
+
+    Args:
+        dataset_id (int): The ID of the dataset.
+        project (str): The name of the project on flexilims.
+        mouse_name (str): The name of the mouse.
+        attributes (dict): The attributes for error correction.
+        verbose (bool, optional): Whether to print the progress. Default is True.
+
+    Returns:
+        pandas.DataFrame: DataFrame with corrected sequences and bases.
+    """
+
+    flm_sess = flz.get_flexilims_session(project_id=project)
+    err_corr_ds = flz.Dataset.from_flexilims(id=dataset_id, flexilims_session=flm_sess)
     # We need to make sure that the dataset is created to avoid another job
     # to create the same dataset.
-    err_corr_ds.extra_attributes["started"] = str(pd.Timestamp.now())
-    err_corr_ds.update_flexilims(mode="overwrite")
     print(f"Started error correcting barcode sequences for {project}/{mouse_name}")
     print(f"Dataset {err_corr_ds.dataset_name} with ID {err_corr_ds.id}.")
     barcode_spots, gmm, all_barcode_spots = get_barcodes(
