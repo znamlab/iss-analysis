@@ -297,6 +297,7 @@ def assign_barcodes_to_masks(
     background_spot_prior=0.0001,
     spot_distribution_sigma=50,
     max_iterations=100,
+    distance_threshold=200,
     verbose=False,
     base_column="bases",
 ):
@@ -312,6 +313,8 @@ def assign_barcodes_to_masks(
         background_spot_prior (float): Prior for the background spots. Default is 0.0001.
         spot_distribution_sigma (float): Sigma for the spot distribution. Default is 20.
         max_iterations (int): Maximum number of iterations. Default is 100.
+        distance_threshold (float): Threshold for the distance in pixels between spots
+            and masks. Default is 50.
         verbose (bool): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
 
@@ -324,6 +327,15 @@ def assign_barcodes_to_masks(
     distances = np.linalg.norm(
         spot_positions[:, None, :] - mask_centers[None, :, :], axis=2
     )
+    # we will use only spots that are close to at least one mask.
+    spots_in_range = np.any(distances < distance_threshold, axis=1)
+    spots = spots[spots_in_range].copy().reset_index(drop=True)
+    distances = distances[spots_in_range]
+
+    if verbose:
+        print(f"Using {spots_in_range.sum()}/{len(spots_in_range)} spots in range")
+        print(f"Assigning {len(spots)} spots to {len(mask_centers)} masks")
+
     log_background_spot_prior = np.log(background_spot_prior)
     # compute the probability of the spot being in each mask given the distance
     log_spot_distribution = -0.5 * (distances / spot_distribution_sigma) ** 2
@@ -332,18 +344,26 @@ def assign_barcodes_to_masks(
     # compute the change in likelihood for each spot if it is assigned to each mask
     log_likelihood_change = np.zeros((len(mask_centers)))
     barcodes = spots[base_column].unique()
+    if verbose:
+        print(f"Found {len(barcodes)} unique barcodes")
     _spot_count_prior = partial(spot_count_prior, p=p, m=m)
     for iter in range(max_iterations):
         spots_moved = 0
         for barcode in barcodes:
             # count the number of spots assigned to each mask
-            this_barcode = mask_assignment[spots[base_column] == barcode]
+            spot_is_this_barcode = spots[base_column] == barcode
+            this_barcode = mask_assignment[spot_is_this_barcode]
             mask_counts = np.bincount(
                 this_barcode[this_barcode >= 0], minlength=len(mask_centers)
             )
-            for i in spots[spots[base_column] == barcode].index:
-                current_mask = mask_assignment[i]
-                for new_mask in range(len(mask_centers)):
+            for spot_index in spots[spot_is_this_barcode].index:
+                # reset likelihood change
+                log_likelihood_change += -np.inf
+
+                current_mask = mask_assignment[spot_index]
+                mask_is_closeby = distances[spot_index] < distance_threshold
+                assert np.sum(mask_is_closeby) > 0
+                for new_mask in np.where(mask_is_closeby)[0]:
                     if current_mask == -1:
                         # changing from a background spot to a mask
                         current_likelihood = (
@@ -351,16 +371,16 @@ def assign_barcodes_to_masks(
                             + _spot_count_prior(mask_counts[new_mask])
                         )
                         new_likelihood = log_spot_distribution[
-                            i, new_mask
+                            spot_index, new_mask
                         ] + _spot_count_prior(mask_counts[new_mask] + 1)
                     else:
                         current_likelihood = (
-                            log_spot_distribution[i, current_mask]
+                            log_spot_distribution[spot_index, current_mask]
                             + _spot_count_prior(mask_counts[current_mask])
                             + _spot_count_prior(mask_counts[new_mask])
                         )
                         new_likelihood = (
-                            log_spot_distribution[i, new_mask]
+                            log_spot_distribution[spot_index, new_mask]
                             + _spot_count_prior(mask_counts[current_mask] - 1)
                             + _spot_count_prior(mask_counts[new_mask] + 1)
                         )
@@ -371,23 +391,27 @@ def assign_barcodes_to_masks(
                 if current_mask == -1:
                     log_likelihood_change_background = 0
                 else:
+                    assert mask_counts[current_mask] > 0
                     log_likelihood_change_background = (
                         log_background_spot_prior
                         + _spot_count_prior(mask_counts[current_mask] - 1)
                         - _spot_count_prior(mask_counts[current_mask])
-                        - log_spot_distribution[i, current_mask]
+                        - log_spot_distribution[spot_index, current_mask]
                     )
                 # if max of log_likelihood_change is higher than log_likelihood_change_background
                 # then assign the spot to the mask that gives the highest increase in likelihood
                 if np.max(log_likelihood_change) > log_likelihood_change_background:
                     new_mask_assignment = np.argmax(log_likelihood_change)
                     if new_mask_assignment != current_mask:
-                        mask_assignment[i] = new_mask_assignment
-                        mask_counts[current_mask] -= 1
+                        mask_assignment[spot_index] = new_mask_assignment
+                        if current_mask != -1:
+                            assert mask_counts[current_mask] > 0
+                            mask_counts[current_mask] -= 1
                         mask_counts[new_mask_assignment] += 1
                         spots_moved += 1
                 elif current_mask != -1:
-                    mask_assignment[i] = -1
+                    mask_assignment[spot_index] = -1
+                    assert mask_counts[current_mask] > 0
                     mask_counts[current_mask] -= 1
                     spots_moved += 1
         if verbose:
@@ -395,7 +419,8 @@ def assign_barcodes_to_masks(
         if spots_moved == 0:
             for barcode in barcodes:
                 # count the number of spots assigned to each mask
-                this_barcode = mask_assignment[spots[base_column] == barcode]
+                valid_spots = spots[base_column] == barcode
+                this_barcode = mask_assignment[valid_spots]
                 mask_counts = np.bincount(
                     this_barcode[this_barcode >= 0], minlength=len(mask_centers)
                 )
@@ -411,15 +436,13 @@ def assign_barcodes_to_masks(
                         )
                         if log_likelihood_change_background > 0:
                             mask_assignment[
-                                (mask_assignment == current_mask)
-                                & (spots[base_column] == barcode)
+                                (mask_assignment == current_mask) & valid_spots
                             ] = -1
                             spots_moved += mask_counts[current_mask]
-                            if verbose:
-                                print(
-                                    f"Moved {mask_counts[current_mask]} spots from mask {current_mask} to background"
-                                )
                             mask_counts[current_mask] = 0
             if spots_moved == 0:
                 break
-    return mask_assignment
+    # recreate a full assignment with -2 for spots that are not assigned
+    mask_assignment_full = np.full(len(spots_in_range), -2)
+    mask_assignment_full[spots_in_range] = mask_assignment
+    return mask_assignment_full
