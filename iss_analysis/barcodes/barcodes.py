@@ -326,7 +326,7 @@ def assign_barcodes_to_masks(
         print(f"Found {len(barcodes)} unique barcodes")
     sp_prior = partial(_spot_count_prior, p=p, m=m)
     if debug:
-        output = [mask_assignment]
+        output = [mask_assignment.copy()]
     for iter in range(max_iterations):
         spots_moved = 0
         for barcode in barcodes:
