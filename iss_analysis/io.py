@@ -6,7 +6,7 @@ import h5py
 import iss_preprocess as issp
 
 
-def get_chamber_datapath(acquisition_folder):
+def get_chamber_datapath(acquisition_folder, chamber_list=None):
     """Get the chamber folders from the acquisition folder.
 
     Simple utility function to get the chamber folders from the acquisition folder or
@@ -14,16 +14,20 @@ def get_chamber_datapath(acquisition_folder):
 
     Args:
         acquisition_folder (str): The path to the acquisition folder.
+        chamber_list (list, optional): The list of chambers to include. Default is None.
 
     Returns:
         list: A list of chamber folders.
     """
     main_folder = issp.io.get_processed_path(acquisition_folder)
     if "chamber" in main_folder.name:  # single chamber
+        assert chamber_list is None, "chamber_list should be None for single chamber"
         chambers = [acquisition_folder]
     else:  # mouse folder
         chambers = list(main_folder.glob("chamber_*"))
         chambers = [chamber for chamber in chambers if chamber.is_dir()]
+        if chamber_list is not None:
+            chambers = [chamber for chamber in chambers if chamber.name in chamber_list]
         # make the path relative to project, like acquisition_folder
         root = str(main_folder)[: -len(acquisition_folder)]
         chambers = [str(chamber.relative_to(root)) for chamber in chambers]
