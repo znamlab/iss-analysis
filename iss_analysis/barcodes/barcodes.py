@@ -418,9 +418,10 @@ def assign_barcodes_to_masks(
                         # likelihood change if all spots in the mask are background spots
                         log_likelihood_change_background = (
                             log_background_spot_prior * mask_counts[current_mask]
-                            - _spot_count_prior(mask_counts[current_mask])
+                            - sp_prior(mask_counts[current_mask])
                             - log_spot_distribution[
-                                mask_assignment == current_mask, current_mask
+                                (mask_assignment == current_mask) & valid_spots,
+                                current_mask,
                             ].sum()
                         )
                         if log_likelihood_change_background > 0:
