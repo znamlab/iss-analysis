@@ -3,14 +3,41 @@ import pandas as pd
 import re
 import scipy.sparse as ss
 import h5py
+import iss_preprocess as issp
+
+
+def get_chamber_datapath(acquisition_folder):
+    """Get the chamber folders from the acquisition folder.
+
+    Simple utility function to get the chamber folders from the acquisition folder or
+    the chamber folder itself.
+
+    Args:
+        acquisition_folder (str): The path to the acquisition folder.
+
+    Returns:
+        list: A list of chamber folders.
+    """
+    main_folder = issp.io.get_processed_path(acquisition_folder)
+    if "chamber" in main_folder.name:  # single chamber
+        chambers = [acquisition_folder]
+    else:  # mouse folder
+        chambers = list(main_folder.glob("chamber_*"))
+        chambers = [chamber for chamber in chambers if chamber.is_dir()]
+        # make the path relative to project, like acquisition_folder
+        root = str(main_folder)[: -len(acquisition_folder)]
+        chambers = [str(chamber.relative_to(root)) for chamber in chambers]
+    return chambers
 
 
 def filter_genes(gene_names):
     # get rid of gene models etc
     genes_Rik = np.array([re.search("Rik$", s) is not None for s in gene_names])
-    genes_Gm = np.array([re.search("Gm\d", s) is not None for s in gene_names])
-    genes_LOC = np.array([re.search("LOC\d", s) is not None for s in gene_names])
-    genes_AA = np.array([re.search("^[A-Z]{2}\d*$", s) is not None for s in gene_names])
+    genes_Gm = np.array([re.search(r"Gm\d", s) is not None for s in gene_names])
+    genes_LOC = np.array([re.search(r"LOC\d", s) is not None for s in gene_names])
+    genes_AA = np.array(
+        [re.search(r"^[A-Z]{2}\d*$", s) is not None for s in gene_names]
+    )
     keep_genes = np.logical_not(genes_Rik + genes_Gm + genes_LOC + genes_AA)
     return keep_genes
 

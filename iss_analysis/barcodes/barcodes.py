@@ -37,18 +37,7 @@ def get_barcodes(
         gmm (GaussianMixture): The trained Gaussian Mixture Model.
         all_barcode_spots (pd.DataFrame): DataFrame containing all barcode spots.
     """
-    main_folder = issp.io.get_processed_path(acquisition_folder)
-    if not main_folder.exists():
-        raise FileNotFoundError(f"Folder {main_folder} does not exist")
-
-    if "chamber" in main_folder.name:  # single chamber
-        chambers = [acquisition_folder]
-    else:  # mouse folder
-        chambers = list(main_folder.glob("chamber_*"))
-        chambers = [chamber for chamber in chambers if chamber.is_dir()]
-        # make the path relative to project, like acquisition_folder
-        root = str(main_folder)[: -len(acquisition_folder)]
-        chambers = [str(chamber.relative_to(root)) for chamber in chambers]
+    chambers = get_chamber_datapath(acquisition_folder)
     all_barcode_spots = []
     for chamber in chambers:
         ops = issp.io.load.load_ops(chamber)
