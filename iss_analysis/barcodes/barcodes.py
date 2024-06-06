@@ -289,6 +289,7 @@ def assign_barcodes_to_masks(
     distance_threshold=200,
     verbose=False,
     base_column="bases",
+    debug=False,
 ):
     """Assign barcodes to masks using a probabilistic model.
 
@@ -306,9 +307,11 @@ def assign_barcodes_to_masks(
             and masks. Default is 50.
         verbose (bool): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
+        debug (bool): Whether to return debug information. Default is False.
 
     Returns:
-        np.ndarray: Array with the mask assignment.
+        np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
+            array with the mask assignment for each iteration.
     """
     # compute the distance between each spot and each mask
     mask_centers = masks[["x", "y"]].values
@@ -335,7 +338,8 @@ def assign_barcodes_to_masks(
     barcodes = spots[base_column].unique()
     if verbose:
         print(f"Found {len(barcodes)} unique barcodes")
-    _spot_count_prior = partial(spot_count_prior, p=p, m=m)
+    if debug:
+        output = [mask_assignment]
     for iter in range(max_iterations):
         spots_moved = 0
         for barcode in barcodes:
@@ -405,6 +409,8 @@ def assign_barcodes_to_masks(
                     spots_moved += 1
         if verbose:
             print(f"Iteration {iter}: {spots_moved} spots resassigned")
+        if debug:
+            output.append(mask_assignment.copy())
         if spots_moved == 0:
             for barcode in barcodes:
                 # count the number of spots assigned to each mask
@@ -430,9 +436,20 @@ def assign_barcodes_to_masks(
                             ] = -1
                             spots_moved += mask_counts[current_mask]
                             mask_counts[current_mask] = 0
+            if debug:
+                output.append(mask_assignment.copy())
             if spots_moved == 0:
                 break
+
     # recreate a full assignment with -2 for spots that are not assigned
-    mask_assignment_full = np.full(len(spots_in_range), -2)
-    mask_assignment_full[spots_in_range] = mask_assignment
+    def _recreate_full_assignment(mask_assignment, spots_in_range):
+        full_assignment = np.full(len(spots_in_range), -2)
+        full_assignment[spots_in_range] = mask_assignment
+        return full_assignment
+
+    if debug:
+        for m in range(len(output)):
+            output[m] = _recreate_full_assignment(output[m], spots_in_range)
+        return np.vstack(output)
+    mask_assignment_full = _recreate_full_assignment(mask_assignment, spots_in_range)
     return mask_assignment_full
