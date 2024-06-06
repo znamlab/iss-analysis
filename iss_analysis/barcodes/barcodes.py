@@ -6,6 +6,7 @@ from tqdm import tqdm
 import iss_preprocess as issp
 from iss_preprocess.call import BASES
 from functools import partial
+from ..io import get_chamber_datapath
 
 
 def get_barcodes(
@@ -263,21 +264,6 @@ def error_per_round(
     return all_errors
 
 
-def spot_count_prior(nspots, p=0.9, m=0.1):
-    """Compute the prior for the number of spots in a mask.
-
-    Args:
-        nspots (int): Number of spots in the mask.
-        p (float): Power of the spot count prior. Default is 0.9.
-        m (float): Lambda of the spot count prior. Default is 0.1.
-
-    Returns:
-        float: Prior for the number of spots in the mask.
-
-    """
-    return -(nspots**p) / m
-
-
 def assign_barcodes_to_masks(
     spots,
     masks,
@@ -338,6 +324,7 @@ def assign_barcodes_to_masks(
     barcodes = spots[base_column].unique()
     if verbose:
         print(f"Found {len(barcodes)} unique barcodes")
+    sp_prior = partial(_spot_count_prior, p=p, m=m)
     if debug:
         output = [mask_assignment]
     for iter in range(max_iterations):
@@ -352,31 +339,19 @@ def assign_barcodes_to_masks(
             for spot_index in spots[spot_is_this_barcode].index:
                 # reset likelihood change
                 log_likelihood_change += -np.inf
-
                 current_mask = mask_assignment[spot_index]
                 mask_is_closeby = distances[spot_index] < distance_threshold
                 assert np.sum(mask_is_closeby) > 0
                 for new_mask in np.where(mask_is_closeby)[0]:
-                    if current_mask == -1:
-                        # changing from a background spot to a mask
-                        current_likelihood = (
-                            log_background_spot_prior
-                            + _spot_count_prior(mask_counts[new_mask])
-                        )
-                        new_likelihood = log_spot_distribution[
-                            spot_index, new_mask
-                        ] + _spot_count_prior(mask_counts[new_mask] + 1)
-                    else:
-                        current_likelihood = (
-                            log_spot_distribution[spot_index, current_mask]
-                            + _spot_count_prior(mask_counts[current_mask])
-                            + _spot_count_prior(mask_counts[new_mask])
-                        )
-                        new_likelihood = (
-                            log_spot_distribution[spot_index, new_mask]
-                            + _spot_count_prior(mask_counts[current_mask] - 1)
-                            + _spot_count_prior(mask_counts[new_mask] + 1)
-                        )
+                    current_likelihood, new_likelihood = _calc_log_likelihoods(
+                        current_mask,
+                        new_mask,
+                        log_background_spot_prior,
+                        sp_prior,
+                        mask_counts,
+                        spot_index,
+                        log_spot_distribution,
+                    )
                     log_likelihood_change[new_mask] = (
                         new_likelihood - current_likelihood
                     )
@@ -387,8 +362,8 @@ def assign_barcodes_to_masks(
                     assert mask_counts[current_mask] > 0
                     log_likelihood_change_background = (
                         log_background_spot_prior
-                        + _spot_count_prior(mask_counts[current_mask] - 1)
-                        - _spot_count_prior(mask_counts[current_mask])
+                        + sp_prior(mask_counts[current_mask] - 1)
+                        - sp_prior(mask_counts[current_mask])
                         - log_spot_distribution[spot_index, current_mask]
                     )
                 # if max of log_likelihood_change is higher than log_likelihood_change_background
@@ -453,3 +428,63 @@ def assign_barcodes_to_masks(
         return np.vstack(output)
     mask_assignment_full = _recreate_full_assignment(mask_assignment, spots_in_range)
     return mask_assignment_full
+
+
+def _spot_count_prior(nspots, p=0.9, m=0.1):
+    """Compute the prior for the number of spots in a mask.
+
+    Args:
+        nspots (int): Number of spots in the mask.
+        p (float): Power of the spot count prior. Default is 0.9.
+        m (float): Lambda of the spot count prior. Default is 0.1.
+
+    Returns:
+        float: Prior for the number of spots in the mask.
+
+    """
+    return -(nspots**p) / m
+
+
+def _calc_log_likelihoods(
+    current_mask,
+    new_mask,
+    log_background_spot_prior,
+    sp_prior,
+    mask_counts,
+    spot_index,
+    log_spot_distribution,
+):
+    """Inner function of assign_barcodes_to_masks.
+
+    Calculate the likelihoods for the current and new mask.
+
+    Args:
+        current_mask (int): The current mask.
+        new_mask (int): The new mask.
+        log_background_spot_prior (float): The log background spot prior.
+        sp_prior (function): The spot count prior function.
+        mask_counts (np.ndarray): The mask counts.
+        spot_index (int): The spot index.
+        log_spot_distribution (np.ndarray): The log spot distribution.
+
+    Returns:
+        tuple: Tuple with the current and new likelihoods.
+    """
+    if current_mask == -1:
+        # changing from a background spot to a mask
+        current_likelihood = log_background_spot_prior + sp_prior(mask_counts[new_mask])
+        new_likelihood = log_spot_distribution[spot_index, new_mask] + sp_prior(
+            mask_counts[new_mask] + 1
+        )
+    else:
+        current_likelihood = (
+            log_spot_distribution[spot_index, current_mask]
+            + sp_prior(mask_counts[current_mask])
+            + sp_prior(mask_counts[new_mask])
+        )
+        new_likelihood = (
+            log_spot_distribution[spot_index, new_mask]
+            + sp_prior(mask_counts[current_mask] - 1)
+            + sp_prior(mask_counts[new_mask] + 1)
+        )
+    return current_likelihood, new_likelihood
