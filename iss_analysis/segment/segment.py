@@ -1,8 +1,39 @@
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from tifffile import imwrite
 import iss_preprocess as issp
+import flexiznam as flz
 from znamutils import slurm_it
+
+
+def get_cell_masks(data_path, roi, projection="corrected", mask_expansion=0):
+    """Small wrapper to get cell masks from a given data path.
+
+    Wrap to ensure we use the same projection for all calls
+
+    Args:
+        data_path (str): Path to acquisition data (chamber folder)
+        roi (int): Region of interest
+        projection (str): Projection to use
+        mask_expansion (int): Expansion of the mask
+
+    Returns:
+        np.ndarray: Cell masks
+    """
+    ops = issp.io.load_ops(data_path)
+    seg_prefix = f"{ops['segmentation_prefix']}_masks"
+    masks = issp.pipeline.stitch_registered(
+        data_path,
+        prefix=seg_prefix,
+        roi=roi,
+        projection=projection,
+    )
+    if mask_expansion > 0:
+        masks = issp.pipeline.segment.get_big_masks(
+            data_path, roi, masks, mask_expansion
+        )
+    return masks
 
 
 @slurm_it(conda_env="iss-preprocess", print_job_id=True)
