@@ -114,16 +114,22 @@ def save_stitched_for_manual_clicking(
             del img
 
     # get spots
+    print("Finding spots")
     spots_to_save = dict(hyb="hybridisation_round_1_1_spots", genes="genes_round_spots")
     for k, v in spots_to_save.items():
-        fname = destination / f"{mouse}_{chamber}_{roi}_{k}_spots.npy"
+        fname = destination / f"{mouse}_{chamber}_{roi}_{k}_spots.pkl"
         if fname.exists() and not redo:
             print(f"File {fname} already exists, skipping")
         else:
+            sc = "spot_score" if k == "genes" else "score"
             print(f"Getting {k} spots")
             spot_file = issp.io.get_processed_path(data_path) / f"{v}_{roi}.pkl"
             data = pd.read_pickle(spot_file)
-            pts = data[["x", "y"]].values
+            pts = data[["x", "y", "gene", sc]]
+            pts.columns = ["x", "y", "gene", "score"]
+            pts.to_pickle(fname)
+            print(f"Saved {fname}")
+
     if False:
         # save mcherry centers as npy
         print("Finding mCherry centers")
@@ -145,11 +151,6 @@ def save_stitched_for_manual_clicking(
 
     # find masks of rabies cells
     print("Finding cells")
-    cell_masks = get_cell_masks(
-        data_path,
-        roi=roi,
-        mask_expansion=5,
-    )[..., 0]
     print("Getting mask assignment")
     flm_sess = flz.get_flexilims_session(project_id=project, reuse_token=True)
     rabies_err_corr_ds = flz.Dataset.from_flexilims(
@@ -168,31 +169,42 @@ def save_stitched_for_manual_clicking(
             break
     if rabies_mask_ds is None:
         raise ValueError("No dataset found for the given roi")
+
     err_corr = pd.read_pickle(rabies_err_corr_ds.path_full)
     rabies_assignment = pd.read_pickle(rabies_mask_ds.path_full)
     # add mask to the err_corr dataframe
     err_corr["cell_mask"] = rabies_assignment["mask"]
     # keep only the relevant roi
     rabies_assignment = err_corr[(err_corr.chamber == chamber) & (err_corr.roi == roi)]
-    valid_masks = rabies_assignment[
-        rabies_assignment["cell_mask"] != -1
-    ].cell_mask.unique()
-    print("Saving only rabies cells")
-    rabies_cells = np.zeros_like(cell_masks)
-    for mask in valid_masks:
-        rabies_cells[cell_masks == mask] = mask
-    imwrite(
-        destination / f"{mouse}_{chamber}_{roi}_rabies_cells_mask.tif", rabies_cells
-    )
+    fname = destination / f"{mouse}_{chamber}_{roi}_rabies_cells_mask.tif"
+    if fname.exists() and not redo:
+        print(f"File {fname} already exists, skipping")
+    else:
+        cell_masks = get_cell_masks(
+            data_path,
+            roi=roi,
+            mask_expansion=5,
+        )[..., 0]
+        valid_masks = rabies_assignment[
+            rabies_assignment["cell_mask"] != -1
+        ].cell_mask.unique()
+        print("Saving only rabies cells")
+        rabies_cells = np.zeros_like(cell_masks)
+        for mask in valid_masks:
+            rabies_cells[cell_masks == mask] = mask
+        imwrite(fname, rabies_cells)
     # save spots that are assigned to a cell, with the cell mask and barcode
-    print("Saving spots")
-    valid_spots = rabies_assignment[rabies_assignment["cell_mask"] > 0]
-    valid_spots = valid_spots[["x", "y", "cell_mask", "corrected_bases"]].copy()
-    seq = valid_spots.corrected_bases.unique()
-    valid_spots["seq_id"] = np.nan
-    for i, s in enumerate(seq):
-        valid_spots.loc[valid_spots.corrected_bases == s, "seq_id"] = i
-
-    spot_array = valid_spots[["x", "y", "seq_id", "cell_mask"]].values
-    np.save(destination / f"{mouse}_{chamber}_{roi}_rabies_spots.npy", spot_array)
+    fname = destination / f"{mouse}_{chamber}_{roi}_rabies_spots.npy"
+    if fname.exists() and not redo:
+        print(f"File {fname} already exists, skipping")
+    else:
+        print("Saving spots")
+        valid_spots = rabies_assignment[rabies_assignment["cell_mask"] > 0]
+        valid_spots = valid_spots[["x", "y", "cell_mask", "corrected_bases"]].copy()
+        seq = valid_spots.corrected_bases.unique()
+        valid_spots["seq_id"] = np.nan
+        for i, s in enumerate(seq):
+            valid_spots.loc[valid_spots.corrected_bases == s, "seq_id"] = i
+        spot_array = valid_spots[["x", "y", "seq_id", "cell_mask"]].values
+        np.save(fname, spot_array)
     print("Done")
