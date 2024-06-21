@@ -10,7 +10,7 @@ import iss_preprocess as issp
 
 from .barcodes import get_barcodes, correct_barcode_sequences, assign_barcodes_to_masks
 from ..io import get_chamber_datapath
-from ..segment import get_cell_masks
+from iss_preprocess.segment.cells import get_cell_masks
 
 
 def _log(msg, verbose):

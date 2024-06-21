@@ -6,34 +6,7 @@ import iss_preprocess as issp
 import flexiznam as flz
 from znamutils import slurm_it
 
-
-def get_cell_masks(data_path, roi, projection="corrected", mask_expansion=0):
-    """Small wrapper to get cell masks from a given data path.
-
-    Wrap to ensure we use the same projection for all calls
-
-    Args:
-        data_path (str): Path to acquisition data (chamber folder)
-        roi (int): Region of interest
-        projection (str): Projection to use
-        mask_expansion (int): Expansion of the mask
-
-    Returns:
-        np.ndarray: Cell masks
-    """
-    ops = issp.io.load_ops(data_path)
-    seg_prefix = f"{ops['segmentation_prefix']}_masks"
-    masks = issp.pipeline.stitch_registered(
-        data_path,
-        prefix=seg_prefix,
-        roi=roi,
-        projection=projection,
-    )
-    if mask_expansion > 0:
-        masks = issp.pipeline.segment.get_big_masks(
-            data_path, roi, masks, mask_expansion
-        )
-    return masks
+from iss_preprocess.segment.cells import get_cell_masks
 
 
 @slurm_it(conda_env="iss-preprocess", print_job_id=True)
@@ -123,6 +96,8 @@ def save_stitched_for_manual_clicking(
     else:
         stuff_to_save = {}
         channels = {}
+
+    # iterating on images to save
     for k, v in stuff_to_save.items():
         fname = destination / f"{mouse}_{chamber}_{roi}_{k}.tif"
         if fname.exists() and not redo:
@@ -138,8 +113,17 @@ def save_stitched_for_manual_clicking(
             imwrite(fname, img)
             del img
 
-    # get hybridisation spots
-
+    # get spots
+    spots_to_save = dict(hyb="hybridisation_round_1_1_spots", genes="genes_round_spots")
+    for k, v in spots_to_save.items():
+        fname = destination / f"{mouse}_{chamber}_{roi}_{k}_spots.npy"
+        if fname.exists() and not redo:
+            print(f"File {fname} already exists, skipping")
+        else:
+            print(f"Getting {k} spots")
+            spot_file = issp.io.get_processed_path(data_path) / f"{v}_{roi}.pkl"
+            data = pd.read_pickle(spot_file)
+            pts = data[["x", "y"]].values
     if False:
         # save mcherry centers as npy
         print("Finding mCherry centers")
