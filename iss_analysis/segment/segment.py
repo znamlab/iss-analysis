@@ -91,66 +91,54 @@ def get_barcode_in_cells(
 
 @slurm_it(conda_env="iss-preprocess", print_job_id=True, slurm_options={"mem": "128G"})
 def save_stitched_for_manual_clicking(
-    project, mouse, chamber, roi, error_correction_ds_name, mask_assignment_dataset_name
+    project,
+    mouse,
+    chamber,
+    roi,
+    error_correction_ds_name,
+    mask_assignment_dataset_name,
+    redo=False,
+    save_imgs=True,
 ):
     data_path = f"{project}/{mouse}/{chamber}"
     destination = issp.io.get_processed_path(data_path) / "manual_starter_click"
     destination.mkdir(exist_ok=True, parents=True)
     ops = issp.io.load_ops(data_path)
-    # save a genes stack
-    print("Stitching genes")
-    rab = issp.pipeline.stitch_registered(
-        data_path,
-        prefix="genes_round_1_1",
-        roi=roi,
-        channels=ops["ref_ch"],
-    )
-    imwrite(destination / f"{mouse}_{chamber}_{roi}_genes.tif", rab)
-    del rab
 
-    # save a hyb stack
-    print("Stitching hyb1")
-    rab = issp.pipeline.stitch_registered(
-        data_path,
-        prefix="hybridisation_round_1_1",
-        roi=roi,
-        channels=range(4),
-    )
-    imwrite(destination / f"{mouse}_{chamber}_{roi}_hyb1.tif", rab)
-    del rab
+    if save_imgs:
+        stuff_to_save = dict(
+            genes="genes_round_1_1",
+            hyb="hybridisation_round_1_1",
+            rab="barcode_round_1_1",
+            reference=ops["reference_prefix"],
+            mCherry="mCherry_1",
+        )
+        channels = dict(
+            genes=ops["ref_ch"],
+            hyb=range(4),
+            rab=ops["ref_ch"],
+            mCherry=[2, 3],
+            reference=ops["ref_ch"],
+        )
+    else:
+        stuff_to_save = {}
+        channels = {}
+    for k, v in stuff_to_save.items():
+        fname = destination / f"{mouse}_{chamber}_{roi}_{k}.tif"
+        if fname.exists() and not redo:
+            print(f"File {fname} already exists, skipping")
+        else:
+            print(f"Stitching {k}")
+            img = issp.pipeline.stitch_registered(
+                data_path,
+                prefix=v,
+                roi=roi,
+                channels=channels[k],
+            )
+            imwrite(fname, img)
+            del img
 
-    # save a rabies stack
-    print("Stitching rabies")
-    rab = issp.pipeline.stitch_registered(
-        data_path,
-        prefix="barcode_round_1_1",
-        roi=roi,
-        channels=ops["ref_ch"],
-    )
-    imwrite(destination / f"{mouse}_{chamber}_{roi}_rabies.tif", rab)
-    del rab
-
-    # save stitched mCherry stack
-    print("Stitching mCherry")
-    mCherry = issp.pipeline.stitch_registered(
-        data_path,
-        prefix=f"mCherry_1",
-        roi=roi,
-        channels=[2, 3],
-    )
-    imwrite(destination / f"{mouse}_{chamber}_{roi}_mCherry.tif", mCherry)
-    del mCherry
-
-    # and the reference stack
-    print("Stitching reference")
-    reference = issp.pipeline.stitch_registered(
-        data_path,
-        prefix=ops["reference_prefix"],
-        roi=roi,
-        channels=ops["ref_ch"],
-    )
-    imwrite(destination / f"{mouse}_{chamber}_{roi}_reference.tif", reference)
-    del reference
+    # get hybridisation spots
 
     if False:
         # save mcherry centers as npy
