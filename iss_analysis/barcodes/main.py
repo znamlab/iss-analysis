@@ -323,7 +323,6 @@ def run_mask_assignment(
         f"{project}/{mouse_name}/{chamber}",
         roi,
         masks=masks,
-        mask_expansion=0,
         atlas_size=None,
     )
     del masks
