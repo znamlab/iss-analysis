@@ -23,7 +23,7 @@ def get_barcode_in_cells(
 
     Returns:
         pd.DataFrame: Barcodes in cells."""
-
+    raise DeprecationWarning("outdated function")
     if isinstance(error_corrected_barcodes, str):
         error_corrected_barcodes = pd.read_pickle(error_corrected_barcodes)
 
