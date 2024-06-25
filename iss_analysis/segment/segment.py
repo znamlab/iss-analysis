@@ -180,11 +180,10 @@ def save_stitched_for_manual_clicking(
     if fname.exists() and not redo:
         print(f"File {fname} already exists, skipping")
     else:
-        cell_masks = get_cell_masks(
-            data_path,
-            roi=roi,
-            mask_expansion=5,
-        )[..., 0]
+        cell_masks = get_cell_masks(data_path, roi=roi)
+        imwrite(
+            fname.with_name(f"{mouse}_{chamber}_{roi}_all_cells_mask.tif"), cell_masks
+        )
         valid_masks = rabies_assignment[
             rabies_assignment["cell_mask"] != -1
         ].cell_mask.unique()
@@ -193,6 +192,7 @@ def save_stitched_for_manual_clicking(
         for mask in valid_masks:
             rabies_cells[cell_masks == mask] = mask
         imwrite(fname, rabies_cells)
+
     # save spots that are assigned to a cell, with the cell mask and barcode
     fname = destination / f"{mouse}_{chamber}_{roi}_rabies_spots.npy"
     if fname.exists() and not redo:
@@ -205,6 +205,8 @@ def save_stitched_for_manual_clicking(
         valid_spots["seq_id"] = np.nan
         for i, s in enumerate(seq):
             valid_spots.loc[valid_spots.corrected_bases == s, "seq_id"] = i
-        spot_array = valid_spots[["x", "y", "seq_id", "cell_mask"]].values
+        spot_array = valid_spots[
+            ["x", "y", "seq_id", "cell_mask", "corrected_bases"]
+        ].values
         np.save(fname, spot_array)
     print("Done")
