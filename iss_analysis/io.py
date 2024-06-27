@@ -34,6 +34,46 @@ def get_chamber_datapath(acquisition_folder, chamber_list=None):
     return chambers
 
 
+def get_starter_cells(project, mouse, verbose=True):
+    """Get the starter cells from the manual click.
+
+    Args:
+        project (str): The project name.
+        mouse (str): The mouse name.
+        verbose (bool, optional): Print verbose output. Default is True.
+
+    Returns:
+        pd.DataFrame: The starter cells.
+    """
+
+    manual_click = (
+        issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "starter_cells"
+    )
+    assert manual_click.exists()
+    starters = []
+    for data_path in get_chamber_datapath(f"{project}/{mouse}"):
+        chamber = issp.io.get_processed_path(data_path).stem
+        for roi in range(1, 11):
+            fname = manual_click / f"starter_cells_{mouse}_{chamber}_roi_{roi}.csv"
+            if not fname.exists():
+                if verbose:
+                    print(f"No manual click for {chamber} roi {roi}")
+                continue
+            clicked = pd.read_csv(fname)
+            st = pd.DataFrame(
+                columns=["chamber", "roi", "x", "y"], index=np.arange(len(clicked))
+            )
+            st["chamber"] = chamber
+            st["roi"] = roi
+            st["x"] = clicked["axis-1"].values
+            st["y"] = clicked["axis-0"].values
+            starters.append(st)
+    starters = pd.concat(starters, ignore_index=True)
+    if verbose:
+        print(f"Loaded {len(starters)} starter cells position")
+    return starters
+
+
 def filter_genes(gene_names):
     # get rid of gene models etc
     genes_Rik = np.array([re.search("Rik$", s) is not None for s in gene_names])
