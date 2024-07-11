@@ -20,6 +20,12 @@ def get_barcode_in_cells(
 ):
     """Count barcodes in cells for a given chamber and roi.
 
+    rab_spot_df will be read from error_correction_ds directly
+
+    For each chamber/roi the one barcodes_mask_assignment dataset will be found on
+    flexilims and the assignment read from there.
+
+
     Args:
         project (str): The project name.
         mouse (str): The mouse name.

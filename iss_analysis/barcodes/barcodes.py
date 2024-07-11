@@ -290,7 +290,7 @@ def assign_barcodes_to_masks(
         spot_distribution_sigma (float): Sigma for the spot distribution. Default is 20.
         max_iterations (int): Maximum number of iterations. Default is 100.
         distance_threshold (float): Threshold for the distance in pixels between spots
-            and masks. Default is 50.
+            and masks. Default is 200.
         verbose (bool): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
         debug (bool): Whether to return debug information. Default is False.
