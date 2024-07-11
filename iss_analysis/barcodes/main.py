@@ -167,7 +167,6 @@ def assign_barcode_all_chambers(
     project,
     mouse_name,
     error_correction_dsname=None,
-    segmentation_mask_prefix="hybridisation_round_3_1_masks",
     p=0.9,
     m=0.1,
     background_spot_prior=0.0001,
@@ -186,8 +185,6 @@ def assign_barcode_all_chambers(
         mouse_name (str): The name of the mouse.
         error_correction_dsname (str, optional): The name of the error corrected barcode
             sequences dataset. Defaults: None.
-        segmentation_mask_prefix (str, optional): The prefix of the segmentation mask
-            files. Defaults: "hybridisation_round_3_1_masks".
         p (float): Power of the spot count prior. Default: 0.9.
         m (float): Length scale of the spot count prior. Default: 0.1.
         background_spot_prior (float): Prior for the background spots. Default: 0.0001.
@@ -270,7 +267,6 @@ def assign_barcode_all_chambers(
                 project=project,
                 mouse_name=mouse_name,
                 assigned_datasets_name=out_ds.full_name,
-                segmentation_mask_prefix=segmentation_mask_prefix,
                 use_slurm=use_slurm,
                 slurm_folder=slurm_folder,
                 scripts_name=f"assign_barcodes_{chamber}_{roi}",
@@ -288,7 +284,6 @@ def run_mask_assignment(
     roi,
     assigned_datasets_name,
     error_correction_dsname,
-    segmentation_mask_prefix,
     p,
     m,
     background_spot_prior,
