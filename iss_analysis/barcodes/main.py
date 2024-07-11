@@ -172,7 +172,7 @@ def assign_barcode_all_chambers(
     background_spot_prior=0.0001,
     spot_distribution_sigma=50,
     max_iterations=100,
-    distance_threshold=200,
+    distance_threshold=600,
     base_column="corrected_bases",
     verbose=True,
     conflicts="abort",
@@ -191,7 +191,7 @@ def assign_barcode_all_chambers(
         spot_distribution_sigma (float): Sigma for the spot distribution. Default: 20.
         max_iterations (int): Maximum number of iterations. Default: 100.
         distance_threshold (float): Threshold for the distance in pixels between spots
-            and masks. Default: 50.
+            and masks. Default: 600.
         base_column (str, optional): The column name for the corrected bases. Defaults:
             "corrected_bases".
         verbose (bool, optional): Whether to print verbose output. Defaults to True.
@@ -252,7 +252,7 @@ def assign_barcode_all_chambers(
                 reload = False
             if reload:
                 if verbose:
-                    print("Reloading error corrected barcode sequences")
+                    print("Reloading mask assignment sequences")
                 try:
                     output[(chamber, roi)] = pd.read_pickle(out_ds.path_full)
                     continue
