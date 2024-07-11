@@ -79,13 +79,15 @@ def get_barcode_in_cells(
             assert np.isnan(rab_spot_df.loc[rab_ass.index, "cell_mask"]).all()
             rab_spot_df.loc[rab_ass.index, "cell_mask"] = rab_ass["mask"].astype(float)
 
+    assigned = rab_spot_df.cell_mask > 0
+    rab_spot_df.loc[assigned, "mask_uid"] = [
+        f"{c}_{r}_{int(m)}"
+        for c, r, m in rab_spot_df.loc[assigned, ["chamber", "roi", "cell_mask"]].values
+    ]
+
     # make a dataframe for rabies positive cells
     # get rid of background spots
-    assigned_rab = rab_spot_df[rab_spot_df.cell_mask > 0].copy()
-    # make unique identifier in case
-    assigned_rab["mask_uid"] = [
-        f"{r.chamber}_{r.roi}_{int(r.cell_mask)}" for _, r in assigned_rab.iterrows()
-    ]
+    assigned_rab = rab_spot_df[assigned].copy()
     if verbose:
         print(f"Counting spots")
     rab_cells_barcodes = issp.segment.count_spots(
@@ -114,7 +116,8 @@ def get_barcode_in_cells(
     )
     if verbose:
         print(
-            f"Data frame with {len(rab_cells_barcodes)} rabies cells and {len(rab_cells_barcodes.columns)} unique barcodes"
+            f"Data frame with {len(rab_cells_barcodes)} rabies cells and"
+            + f"{len(rab_cells_barcodes.columns)} unique barcodes"
         )
 
     if save_folder is not None:
