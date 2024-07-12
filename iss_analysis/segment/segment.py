@@ -117,7 +117,7 @@ def get_barcode_in_cells(
     if verbose:
         print(
             f"Data frame with {len(rab_cells_barcodes)} rabies cells and"
-            + f"{len(rab_cells_barcodes.columns)} unique barcodes"
+            + f" {len(rab_cells_barcodes.columns)} unique barcodes"
         )
 
     if save_folder is not None:
