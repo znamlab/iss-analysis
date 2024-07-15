@@ -252,7 +252,8 @@ def match_starter_to_barcodes(
                 while rabies_cell_properties.loc[mask_uid, "starter"]:
                     if verbose:
                         print(
-                            f"Mask {mask_uid} already assigned to starter cell ... looking for next closest cell"
+                            f"Mask {mask_uid} already assigned to starter cell ... "
+                            + "looking for next closest cell"
                         )
                     spot_roi = spot_roi[spot_roi.cell_mask != mask_id]
                     mask_id = spot_roi.loc[spot_roi.dist.idxmin(), "cell_mask"]
