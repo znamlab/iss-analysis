@@ -65,8 +65,8 @@ def get_barcode_in_cells(
             flexilims_session=flm_sess,
             dataset_type="barcodes_mask_assignment",
         )
-
-        for roi in range(1, 11):
+        roi_dim = issp.io.get_roi_dimensions(data_path)
+        for roi in roi_dim[:, 0]:
             # find the one that matches the roi
             rabies_mask_ds = None
             for ds in rabies_mask_dss:
