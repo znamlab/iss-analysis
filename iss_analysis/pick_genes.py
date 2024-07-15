@@ -7,11 +7,15 @@ from .io import load_data_yao_2021, load_data_tasic_2018
 import time
 
 
-def compute_means(exons_df, classify_by, gene_filter='\d'):
-    exons_matrix = exons_df.filter(regex=gene_filter).to_numpy() # n cells x n genes matrix
+def compute_means(exons_df, classify_by, gene_filter="\d"):
+    exons_matrix = exons_df.filter(
+        regex=gene_filter
+    ).to_numpy()  # n cells x n genes matrix
     # names of columns containing expression data are integer numbers
-    expression_by_cluster = exons_df.groupby([classify_by]).mean().filter(regex=gene_filter)
-    cluster_means = expression_by_cluster.to_numpy()   # n clusters x n genes matrix
+    expression_by_cluster = (
+        exons_df.groupby([classify_by]).mean().filter(regex=gene_filter)
+    )
+    cluster_means = expression_by_cluster.to_numpy()  # n clusters x n genes matrix
 
     cluster_ids = np.empty(len(exons_df[classify_by]), dtype=int)
     for i, cluster in enumerate(exons_df[classify_by]):
@@ -59,7 +63,7 @@ def lognbinom(k, mu):
         Log negative binomial probability.
 
     """
-    return np.log(k + 1) + np.log(mu / (mu + 2)) * k + np.log(2/(mu + 2)) * 2
+    return np.log(k + 1) + np.log(mu / (mu + 2)) * k + np.log(2 / (mu + 2)) * 2
 
 
 def next_best_gene(include_genes, cluster_probs, cluster_ids):
@@ -86,9 +90,11 @@ def next_best_gene(include_genes, cluster_probs, cluster_ids):
     cell_probs = cluster_probs[:, include_genes, :].sum(axis=1)
     for igene in tqdm(range(ngenes), leave=False):
         if not include_genes[igene]:
-                # add the new gene and pick the cluster with the highest sum log-NB probability
-                cluster_assignments = (cell_probs + cluster_probs[:, igene, :]).argmax(axis=1)
-                accuracy[igene] = np.mean(cluster_ids == cluster_assignments)
+            # add the new gene and pick the cluster with the highest sum log-NB probability
+            cluster_assignments = (cell_probs + cluster_probs[:, igene, :]).argmax(
+                axis=1
+            )
+            accuracy[igene] = np.mean(cluster_ids == cluster_assignments)
 
     return np.argmax(accuracy), np.max(accuracy)
 
@@ -140,14 +146,17 @@ def compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001):
         cells x genes x clusters matrix (numpy.ndarray)
 
     """
-    cluster_probs = np.empty((exons_matrix.shape[0], exons_matrix.shape[1], cluster_means.shape[0]))
+    cluster_probs = np.empty(
+        (exons_matrix.shape[0], exons_matrix.shape[1], cluster_means.shape[0])
+    )
     for i, cluster in enumerate(cluster_means):
-        cluster_probs[:,:,i] = lognbinom(exons_matrix, cluster + nu)
+        cluster_probs[:, :, i] = lognbinom(exons_matrix, cluster + nu)
     return cluster_probs
 
 
-def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(),
-                      niter=100, subsample_cells=1):
+def optimize_gene_set(
+    cluster_probs, cluster_ids, gene_names, gene_set=(), niter=100, subsample_cells=1
+):
     """
     Iteratively optimize the gene set to maximize classification accuracy.
 
@@ -179,20 +188,24 @@ def optimize_gene_set(cluster_probs, cluster_ids, gene_names, gene_set=(),
     for i in range(niter):
         if subsample_cells < 1:
             cell_idx = np.random.rand(cluster_probs.shape[0]) < subsample_cells
-            b, accuracy = next_best_gene(include_genes, cluster_probs[cell_idx,:,:], cluster_ids[cell_idx])
+            b, accuracy = next_best_gene(
+                include_genes, cluster_probs[cell_idx, :, :], cluster_ids[cell_idx]
+            )
         else:
             b, accuracy = next_best_gene(include_genes, cluster_probs, cluster_ids)
 
         include_genes[b] = True
-        print(f'added {gene_names.iloc[b]}, accuracy = {accuracy}')
+        print(f"added {gene_names.iloc[b]}, accuracy = {accuracy}")
         if i > 0:
             if subsample_cells < 1:
-                r, accuracy = remove_bad_gene(include_genes, cluster_probs[cell_idx,:,:], cluster_ids[cell_idx])
+                r, accuracy = remove_bad_gene(
+                    include_genes, cluster_probs[cell_idx, :, :], cluster_ids[cell_idx]
+                )
             else:
                 r, accuracy = remove_bad_gene(include_genes, cluster_probs, cluster_ids)
             if r is not None:
                 include_genes[r] = False
-                print(f'removed {gene_names.iloc[r]}, accuracy = {accuracy}')
+                print(f"removed {gene_names.iloc[r]}, accuracy = {accuracy}")
         gene_set_history.append(include_genes)
         accuracy_history.append(accuracy)
     return include_genes, gene_set_history, accuracy_history
@@ -219,40 +232,47 @@ def classify_cells(exons_matrix, cluster_means, gene_set, gene_names, nu=0.001):
     include_genes = np.isin(np.array(gene_names), gene_set)
     cell_probs = np.empty((exons_matrix.shape[0], cluster_means.shape[0]))
     for i, cluster in enumerate(cluster_means):
-        cell_probs[:,i] = lognbinom(exons_matrix[:, include_genes], cluster[include_genes] + nu).sum(axis=1)
+        cell_probs[:, i] = lognbinom(
+            exons_matrix[:, include_genes], cluster[include_genes] + nu
+        ).sum(axis=1)
     cluster_assignments = cell_probs.argmax(axis=1)
     return cluster_assignments
 
 
 def evaluate_gene_set(train_set, test_set, gene_set, gene_names):
-    """ Plot classification accuracy while incrementally growing the gene set """
+    """Plot classification accuracy while incrementally growing the gene set"""
     ngenes = len(gene_set)
     accuracy_train = np.empty(ngenes)
     accuracy_test = np.empty(ngenes)
     for i in range(ngenes):
         cluster_assignments_train = classify_cells(
-            train_set['exons_matrix'],
-            train_set['cluster_means'],
-            gene_set[:i], gene_names
+            train_set["exons_matrix"],
+            train_set["cluster_means"],
+            gene_set[:i],
+            gene_names,
         )
-        accuracy_train[i] = np.mean(cluster_assignments_train == train_set['cluster_ids'])
+        accuracy_train[i] = np.mean(
+            cluster_assignments_train == train_set["cluster_ids"]
+        )
         cluster_assignments_test = classify_cells(
-            test_set['exons_matrix'],
-            train_set['cluster_means'],
-            gene_set[:i], gene_names
+            test_set["exons_matrix"],
+            train_set["cluster_means"],
+            gene_set[:i],
+            gene_names,
         )
-        accuracy_test[i] = np.mean(cluster_assignments_test == test_set['cluster_ids'])
+        accuracy_test[i] = np.mean(cluster_assignments_test == test_set["cluster_ids"])
 
     plt.plot(accuracy_train)
     plt.plot(accuracy_test)
-    plt.xlabel('# genes')
-    plt.ylabel('accuracy')
+    plt.xlabel("# genes")
+    plt.ylabel("accuracy")
     plt.show()
     return accuracy_train, accuracy_test
 
 
-def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
-                          display_counts=True):
+def plot_confusion_matrix(
+    cluster_ids, cluster_assignments, cluster_labels, display_counts=True
+):
     """
     Plot a confusion matrix for the provided cluster assignments.
 
@@ -276,19 +296,19 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
         normalize = None
         include_values = True
     else:
-        normalize = 'true'
+        normalize = "true"
         include_values = False
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(10, 10))
     ax = plt.subplot(111)
     ConfusionMatrixDisplay.from_predictions(
         cluster_ids,
         cluster_assignments,
         display_labels=cluster_labels,
-        xticks_rotation='vertical',
-        cmap='Blues',
+        xticks_rotation="vertical",
+        cmap="Blues",
         ax=ax,
         normalize=normalize,
-        include_values=include_values
+        include_values=include_values,
     )
     plt.show()
     return c
@@ -297,28 +317,39 @@ def plot_confusion_matrix(cluster_ids, cluster_assignments, cluster_labels,
 def train_test_split(exons_df, classify_by, gene_filter, efficiency=0.01):
     train = {}
     test = {}
-    train['exons_matrix'], train['cluster_ids'], train['cluster_means'], cluster_labels = compute_means(
-        exons_df.iloc[::2],
-        classify_by=classify_by,
-        gene_filter=gene_filter
+    (
+        train["exons_matrix"],
+        train["cluster_ids"],
+        train["cluster_means"],
+        cluster_labels,
+    ) = compute_means(
+        exons_df.iloc[::2], classify_by=classify_by, gene_filter=gene_filter
     )
-    train['exons_matrix'], train['cluster_means'] = resample_counts(
-        train['exons_matrix'], train['cluster_means'], efficiency=efficiency
+    train["exons_matrix"], train["cluster_means"] = resample_counts(
+        train["exons_matrix"], train["cluster_means"], efficiency=efficiency
     )
-    test['exons_matrix'], test['cluster_ids'], test['cluster_means'], cluster_labels = compute_means(
-        exons_df.iloc[1::2],
-        classify_by=classify_by,
-        gene_filter=gene_filter
+    (
+        test["exons_matrix"],
+        test["cluster_ids"],
+        test["cluster_means"],
+        cluster_labels,
+    ) = compute_means(
+        exons_df.iloc[1::2], classify_by=classify_by, gene_filter=gene_filter
     )
-    test['exons_matrix'], test['cluster_means'] = resample_counts(
-        test['exons_matrix'], test['cluster_means'], efficiency=efficiency
+    test["exons_matrix"], test["cluster_means"] = resample_counts(
+        test["exons_matrix"], test["cluster_means"], efficiency=efficiency
     )
     return train, test, cluster_labels
 
 
-def main(savepath, *, efficiency=0.01,
-         datapath='C:/Users/Alex/PhD_data/allen2018/',
-         subsample=1, classify='cluster'):
+def main(
+    savepath,
+    *,
+    efficiency=0.01,
+    datapath="/camp/lab/znamenskiyp/home/shared/resources/allen2018/",
+    subsample=1,
+    classify="cluster",
+):
     """
     Optimize gene set for cell classification.
 
@@ -331,29 +362,29 @@ def main(savepath, *, efficiency=0.01,
         classify (str): which field to use for classification. Default: 'cluster'
 
     """
-    print('loading reference data...', flush=True)
+    print("loading reference data...", flush=True)
     exons_df, gene_names = load_data_tasic_2018(datapath)
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
-        exons_df,
-        classify_by=classify,
-        gene_filter='\d'
+        exons_df, classify_by=classify, gene_filter="\d"
     )
-    print('resampling reference data...', flush=True)
-    exons_matrix, cluster_means = resample_counts(exons_matrix, cluster_means, efficiency=efficiency)
-    print('computing cluster probabilities...', flush=True)
+    print("resampling reference data...", flush=True)
+    exons_matrix, cluster_means = resample_counts(
+        exons_matrix, cluster_means, efficiency=efficiency
+    )
+    print("computing cluster probabilities...", flush=True)
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
-    print('optimizing gene set...', flush=True)
+    print("optimizing gene set...", flush=True)
     include_genes, gene_set_history, accuracy_history = optimize_gene_set(
         probs, cluster_ids, gene_names, subsample_cells=subsample
     )
     timestr = time.strftime("%Y%m%d_%H%M%S")
     print(gene_names[include_genes])
     np.savez(
-        f'{savepath}genes_{classify}_e{efficiency}_s{subsample}_{timestr}.npz',
+        f"{savepath}genes_{classify}_e{efficiency}_s{subsample}_{timestr}.npz",
         include_genes=include_genes,
         gene_set_history=gene_set_history,
         accuracy_history=accuracy_history,
-        gene_names=gene_names
+        gene_names=gene_names,
     )
 
 
