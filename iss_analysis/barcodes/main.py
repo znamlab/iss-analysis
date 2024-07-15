@@ -166,7 +166,7 @@ def run_error_correction(
 def assign_barcode_all_chambers(
     project,
     mouse_name,
-    error_correction_dsname=None,
+    error_correction_ds_name=None,
     p=0.9,
     m=0.1,
     background_spot_prior=0.0001,
@@ -183,7 +183,7 @@ def assign_barcode_all_chambers(
     Args:
         project (str): The project name.
         mouse_name (str): The name of the mouse.
-        error_correction_dsname (str, optional): The name of the error corrected barcode
+        error_correction_ds_name (str, optional): The name of the error corrected barcode
             sequences dataset. Defaults: None.
         p (float): Power of the spot count prior. Default: 0.9.
         m (float): Length scale of the spot count prior. Default: 0.1.
@@ -207,7 +207,7 @@ def assign_barcode_all_chambers(
     print(f"Started assigning barcodes to masks for {project}/{mouse_name}")
     flm_sess = flz.get_flexilims_session(project_id=project)
     attributes = dict(
-        error_correction_dsname=error_correction_dsname,
+        error_correction_ds_name=error_correction_ds_name,
         p=p,
         m=m,
         background_spot_prior=background_spot_prior,
@@ -283,7 +283,7 @@ def run_mask_assignment(
     chamber,
     roi,
     assigned_datasets_name,
-    error_correction_dsname,
+    error_correction_ds_name,
     p,
     m,
     background_spot_prior,
@@ -299,7 +299,7 @@ def run_mask_assignment(
     )
     flm_sess = flz.get_flexilims_session(project_id=project)
     error_dataset = flz.Dataset.from_flexilims(
-        flexilims_session=flm_sess, name=error_correction_dsname
+        flexilims_session=flm_sess, name=error_correction_ds_name
     )
     assigned_dataset = flz.Dataset.from_flexilims(
         flexilims_session=flm_sess, name=assigned_datasets_name
@@ -357,3 +357,58 @@ def run_mask_assignment(
     assigned_dataset.update_flexilims(mode="overwrite")
     _log("Updated dataset in flexilims", verbose)
     return output
+
+
+@slurm_it(conda_env="iss-preprocess", print_job_id=True, slurm_options={"mem": "32G"})
+def save_ara_info(
+    project,
+    mouse_name,
+    chamber,
+    roi,
+    error_correction_ds_name,
+    atlas_size=10,
+    acronyms=False,
+    full_scale=False,
+    verbose=True,
+):
+    """Save ARA information for the rabies spots."""
+    _log(
+        f"Saving ARA information for {project}/{mouse_name}/{chamber}/{roi}",
+        verbose,
+    )
+    flm_sess = flz.get_flexilims_session(project_id=project)
+    error_dataset = flz.Dataset.from_flexilims(
+        flexilims_session=flm_sess, name=error_correction_ds_name
+    )
+    _log(f"Error corrected barcodes from {error_dataset.path_full}", verbose)
+    _log("Loading spots", verbose)
+    bc = pd.read_pickle(error_dataset.path_full)
+    spots = bc[(bc.chamber == chamber) & (bc.roi == roi)].copy()
+    del bc
+    gc.collect()
+    _log("Getting ARA information for spots", verbose)
+    ara_infos_spots = issp.pipeline.ara_registration.spots_ara_infos(
+        data_path=f"{project}/{mouse_name}/{chamber}",
+        spots=spots,
+        roi=roi,
+        atlas_size=atlas_size,
+        acronyms=acronyms,
+        inplace=False,
+        full_scale_coordinates=full_scale,
+    )
+    ara_infos_spots["spot_index"] = ara_infos_spots.index
+    cols = ["chamber", "roi", "spot_index", "ara_x", "ara_y", "ara_z", "area_id"]
+    if acronyms:
+        cols.append("area_acronym")
+    ara_infos_spots = ara_infos_spots[cols]
+
+    target = issp.io.get_processed_path(f"{project}/{mouse_name}/analysis")
+    target = target / "ara_infos"
+    target.mkdir(exist_ok=True)
+    target /= f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
+    ara_infos_spots.to_pickle(target)
+    _log(f"Saved ARA information to {target}", verbose)
+
+    _log("Getting ARA information for cells", verbose)
+
+    return ara_infos_spots

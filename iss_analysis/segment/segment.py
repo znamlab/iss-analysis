@@ -17,6 +17,7 @@ def get_barcode_in_cells(
     valid_chambers=None,
     save_folder=None,
     verbose=True,
+    add_ara_properties=True,
 ):
     """Count barcodes in cells for a given chamber and roi.
 
@@ -35,6 +36,8 @@ def get_barcode_in_cells(
         save_folder (str, optional): The folder where to save the results. Defaults to
             None.
         verbose (bool, optional): Print progress. Defaults to True.
+        add_ara_properties (bool, optional): Add ARA properties to the dataframe.
+            Defaults to True.
 
     Returns:
         pd.DataFrame: The rabies spots dataframe.
@@ -50,7 +53,13 @@ def get_barcode_in_cells(
     rab_spot_df = pd.read_pickle(err_corr_ds.path_full)
     if verbose:
         print(f"Loaded {len(rab_spot_df)} rabies barcodes")
-
+    if add_ara_properties:
+        ara_cols = ["ara_x", "ara_y", "ara_z", "area_id", "area_acronym"]
+        for w in ara_cols:
+            rab_spot_df[w] = np.nan
+        ara_info_folder = (
+            issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "ara_infos"
+        )
     # for all chambers, get the mask assignment datasets
     chambers = issa.io.get_chamber_datapath(f"{project}/{mouse}")
     if verbose:
@@ -58,6 +67,7 @@ def get_barcode_in_cells(
     rab_spot_df["cell_mask"] = np.zeros_like(rab_spot_df.x.values) * np.nan
     for data_path in chambers:
         chamber = issp.io.get_processed_path(data_path).stem
+        print(f"   chamber {chamber}")
         if (valid_chambers is not None) and (chamber not in valid_chambers):
             continue
         rabies_mask_dss = flz.get_datasets(
@@ -65,8 +75,8 @@ def get_barcode_in_cells(
             flexilims_session=flm_sess,
             dataset_type="barcodes_mask_assignment",
         )
-
-        for roi in range(1, 11):
+        roi_dim = issp.io.get_roi_dimensions(data_path)
+        for roi in roi_dim[:, 0]:
             # find the one that matches the roi
             rabies_mask_ds = None
             for ds in rabies_mask_dss:
@@ -78,6 +88,32 @@ def get_barcode_in_cells(
             rab_ass = pd.read_pickle(rabies_mask_ds.path_full)
             assert np.isnan(rab_spot_df.loc[rab_ass.index, "cell_mask"]).all()
             rab_spot_df.loc[rab_ass.index, "cell_mask"] = rab_ass["mask"].astype(float)
+
+            if add_ara_properties:
+                target = (
+                    ara_info_folder
+                    / f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
+                )
+                if target.exists():
+                    ara_info = pd.read_pickle(target)
+                else:
+                    print("ARA info not found, recreate them")
+                    ara_info = issa.barcodes.main.save_ara_info(
+                        project,
+                        mouse,
+                        chamber,
+                        roi,
+                        error_correction_ds_name=error_correction_ds_name,
+                        acronyms=True,
+                        full_scale=True,
+                        verbose=verbose,
+                        use_slurm=False,
+                    )
+                assert np.all(
+                    np.isnan(rab_spot_df.loc[ara_info.index, "ara_x"])
+                ), "Conflict in spot ids"
+                for col in ara_cols:
+                    rab_spot_df.loc[ara_info.index, col] = ara_info[col].values
 
     assigned = rab_spot_df.cell_mask > 0
     rab_spot_df.loc[assigned, "mask_uid"] = [
@@ -114,10 +150,24 @@ def get_barcode_in_cells(
     rab_cells_properties["n_unique_barcodes"] = rab_cells_barcodes.astype(bool).sum(
         axis=1
     )
+    if add_ara_properties:
+        ara_coords = (
+            assigned_rab[["mask_uid"] + ara_cols[:3]]
+            .groupby("mask_uid")
+            .aggregate("median")
+        )
+        rab_cells_properties = rab_cells_properties.join(ara_coords)
+        ara_area = (
+            assigned_rab[["mask_uid"] + ara_cols[3:]]
+            .groupby("mask_uid")
+            .aggregate(pd.Series.mode)
+        )
+        rab_cells_properties = rab_cells_properties.join(ara_area)
+
     if verbose:
         print(
             f"Data frame with {len(rab_cells_barcodes)} rabies cells and"
-            + f"{len(rab_cells_barcodes.columns)} unique barcodes"
+            + f" {len(rab_cells_barcodes.columns)} unique barcodes"
         )
 
     if save_folder is not None:
@@ -202,7 +252,8 @@ def match_starter_to_barcodes(
                 while rabies_cell_properties.loc[mask_uid, "starter"]:
                     if verbose:
                         print(
-                            f"Mask {mask_uid} already assigned to starter cell ... looking for next closest cell"
+                            f"Mask {mask_uid} already assigned to starter cell ... "
+                            + "looking for next closest cell"
                         )
                     spot_roi = spot_roi[spot_roi.cell_mask != mask_id]
                     mask_id = spot_roi.loc[spot_roi.dist.idxmin(), "cell_mask"]
