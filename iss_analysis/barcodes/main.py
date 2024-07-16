@@ -367,8 +367,8 @@ def save_ara_info(
     roi,
     error_correction_ds_name,
     atlas_size=10,
-    acronyms=False,
-    full_scale=False,
+    acronyms=True,
+    full_scale=True,
     verbose=True,
 ):
     """Save ARA information for the rabies spots."""
@@ -395,6 +395,7 @@ def save_ara_info(
         acronyms=acronyms,
         inplace=False,
         full_scale_coordinates=full_scale,
+        reload=False,
     )
     ara_infos_spots["spot_index"] = ara_infos_spots.index
     cols = ["chamber", "roi", "spot_index", "ara_x", "ara_y", "ara_z", "area_id"]
@@ -408,7 +409,4 @@ def save_ara_info(
     target /= f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
     ara_infos_spots.to_pickle(target)
     _log(f"Saved ARA information to {target}", verbose)
-
-    _log("Getting ARA information for cells", verbose)
-
     return ara_infos_spots
