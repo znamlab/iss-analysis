@@ -150,6 +150,11 @@ def get_barcode_in_cells(
     rab_cells_properties["n_unique_barcodes"] = rab_cells_barcodes.astype(bool).sum(
         axis=1
     )
+    bc = rab_cells_barcodes.columns
+    is_present = rab_cells_barcodes.astype(bool)
+    rab_cells_properties["all_barcodes"] = [
+        list(bc[present]) for present in is_present.values
+    ]
     if add_ara_properties:
         ara_coords = (
             assigned_rab[["mask_uid"] + ara_cols[:3]]
