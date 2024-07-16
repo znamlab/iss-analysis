@@ -34,6 +34,36 @@ def get_chamber_datapath(acquisition_folder, chamber_list=None):
     return chambers
 
 
+def get_sections_info(project, mouse, chamber=None):
+    """Load section positions and sort them by absolute section
+
+    Args:
+        project (str): project name
+        mouse (str): mouse name
+        chamber (str, optional): chamber name, default None
+
+    Returns:
+        sections_info (pd.DataFrame): DataFrame with section positions
+    """
+    assert isinstance(project, str), "project should be a string"
+    assert isinstance(mouse, str), "mouse should be a string"
+
+    if chamber is None:
+        # they all contain the same information, so use whichever
+        data_path = get_chamber_datapath(f"{project}/{mouse}")[0]
+    else:
+        data_path = f"{project}/{mouse}/{chamber}"
+    sections_info = issp.io.load_section_position(data_path)
+    sections_info.rename(columns={"chamber_position": "roi"}, inplace=True)
+    sections_info["chamber"] = sections_info["chamber"].map(
+        lambda x: f"chamber_{x:02d}"
+    )
+    sections_info.sort_values("absolute_section", inplace=True)
+    sections_info.reset_index(drop=True, inplace=True)
+    sections_info.head()
+    return sections_info
+
+
 def get_starter_cells(project, mouse, verbose=True):
     """Get the starter cells from the manual click.
 
