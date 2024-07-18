@@ -1,9 +1,14 @@
 import numpy as np
-from iss_analysis.io import get_section_info
+from iss_analysis.io import get_sections_info
 
 
 def get_surrounding_slices(
-    ref_chamber, ref_roi, project=None, mouse=None, section_infos=None
+    ref_chamber,
+    ref_roi,
+    project=None,
+    mouse=None,
+    section_infos=None,
+    include_ref=False,
 ):
     """Returns info about the slices above and below the reference slice
 
@@ -16,12 +21,14 @@ def get_surrounding_slices(
             Defaults to None.
         section_infos (pd.DataFrame, optional): DataFrame with section positions,
             required if project and mouse are None. Defaults to None.
+        include_ref (bool, optional): If True, will include the reference slice in the
+            output. Defaults to False.
 
     Returns:
         surrounding_rois (pd.DataFrame): DataFrame with the surrounding slices
     """
     if section_infos is None:
-        section_infos = get_section_info(project, mouse)
+        section_infos = get_sections_info(project, mouse)
 
     ref_sec_pos = section_infos.query(
         "chamber == @ref_chamber and roi == @ref_roi"
@@ -29,6 +36,7 @@ def get_surrounding_slices(
     surrounding_rois = list(
         range(*np.clip(np.array([-1, 2]) + ref_sec_pos.name, 0, len(section_infos)))
     )
-    surrounding_rois.remove(ref_sec_pos.name)
+    if not include_ref:
+        surrounding_rois.remove(ref_sec_pos.name)
     surrounding_rois = section_infos.loc[surrounding_rois].copy()
     return surrounding_rois
