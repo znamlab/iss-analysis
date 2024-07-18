@@ -1,6 +1,49 @@
 import numpy as np
+import pandas as pd
 from scipy.interpolate import LinearNDInterpolator
 from scipy.linalg import lstsq
+
+from . import utils
+
+
+def get_registered_neighbours(
+    ref_chamber, ref_roi, project, mouse, reference_df, df_to_register, verbose=False
+):
+    """Register the spots/cells in df_to_register to the reference slice
+
+    Will use the ARA coordinates as intermediate space to register the spots/cells.
+
+    Args:
+        ref_chamber (str): Reference chamber name
+        ref_roi (int): Reference roi number
+        project (str): Project name
+        mouse (str): Mouse name
+        reference_df (pd.DataFrame): DataFrame with the spots to use for finding the ARA
+            plane of the reference slice
+        df_to_register (pd.DataFrame): DataFrame with the spots or cells to register
+        verbose (bool, optional): If True, will print information about the process.
+            Defaults to False.
+
+    Returns:
+        pd.DataFrame: DataFrame with the registered spots/cells for the reference slice
+            and the surrounding slices
+    """
+    surrounding_rois = utils.get_surrounding_slices(
+        ref_chamber, ref_roi, project, mouse, include_ref=True
+    )
+    ref_spots = reference_df.query("chamber == @ref_chamber and roi == @ref_roi").copy()
+
+    # now project ara_x, ara_y, ara_z on the plane of the reference roi
+    out = []
+    for sec, series in surrounding_rois.iterrows():
+        chamber, roi = series[["chamber", "roi"]]
+        spots = df_to_register.query("chamber == @chamber and roi == @roi")
+        reg_cell = project_to_other_roi(
+            ref_spots, spots, verbose=verbose, method="interpolate"
+        )
+        out.append(reg_cell)
+    out = pd.concat(out, ignore_index=False)
+    return out
 
 
 def project_to_other_roi(fixed_spots, moving_spots, method="interpolate", verbose=True):
@@ -44,19 +87,17 @@ def project_to_other_roi(fixed_spots, moving_spots, method="interpolate", verbos
     fixed_slice_coords = np.c_[fixed_slice_coords, np.zeros(len(fixed_slice_coords))]
 
     # Fit a plane, a x + b y + d = z to the fixed spots
-    A = np.c_[fixed_ara_coords[in_brain, :2], np.ones(in_brain.sum())]
-    coefs, _, _, _ = np.linalg.lstsq(A, fixed_ara_coords[in_brain, 2], rcond=None)
-    a, b, d = coefs
-    c = -1
+    plane_coeffs = utils.fit_plane_to_points(fixed_ara_coords)
+    a, b, c, d = plane_coeffs
     if verbose:
-        print(f"Plane equation: z = {a:.2f}x + {b:.2f}y + {d:.2f}")
+        print(f"Plane equation: {a:.2f}x + {b:.2f}y + {c:.2f} z + {d:.2f} = 0")
 
     # Project moving ara to fixed plane
 
-    projected_ara = _project_points(moving_ara, (a, b, d))
+    projected_ara = _project_points(moving_ara, plane_coeffs)
     for i, col in enumerate(["ara_x_proj", "ara_y_proj", "ara_z_proj"]):
         moving_spots[col] = projected_ara[:, i]
-    md = np.mean(_point_to_plane_distance(moving_ara, (a, b, d))) * 1000
+    md = np.mean(_point_to_plane_distance(moving_ara, plane_coeffs)) * 1000
     if abs(md) > 50:
         raise ValueError(f"Average distance to plane is too high: {md:.2f} um")
     if verbose:
@@ -98,14 +139,14 @@ def _point_to_plane_distance(points, plane_coeffs):
 
     Args:
         points (np.ndarray): Nx3 Array of point coordinates.
-        plane_coeffs (tuple): Tuple of the plane coefficients (a, b, d).
+        plane_coeffs (tuple): Tuple of the plane coefficients (a, b, c,d).
 
     Returns:
         distance (np.ndarray): Array of distances from the points to the plane
     """
-    a, b, d = plane_coeffs
-    numerator = a * points[:, 0] + b * points[:, 1] - points[:, 2] + d
-    denominator = np.sqrt(a**2 + b**2 + 1)
+    a, b, c, d = plane_coeffs
+    numerator = a * points[:, 0] + b * points[:, 1] + c * points[:, 2] + d
+    denominator = np.sqrt(a**2 + b**2 + c**2)
     distance = numerator / denominator
     return distance
 
@@ -115,14 +156,14 @@ def _project_points(points, plane_coeffs):
 
     Args:
         points (np.ndarray): Nx3 Array of point coordinates.
-        plane_coeffs (tuple): Tuple of the plane coefficients (a, b, d).
+        plane_coeffs (tuple): Tuple of the plane coefficients (a, b, c, d).
 
     Returns:
         projected_points (np.ndarray): Nx3 Array of projected point coordinates.
     """
     distance = _point_to_plane_distance(points, plane_coeffs)
-    a, b, d = plane_coeffs
-    normal = np.array([a, b, -1])
+    a, b, c, d = plane_coeffs
+    normal = np.array([a, b, c])
     normal /= np.linalg.norm(normal)
     projected_points = points - distance[:, np.newaxis] * normal
     return projected_points
