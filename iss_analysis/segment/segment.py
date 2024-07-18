@@ -445,14 +445,29 @@ def save_stitched_for_manual_clicking(
         print(f"File {fname} already exists, skipping")
     else:
         print("Saving spots")
-        valid_spots = rabies_assignment[rabies_assignment["cell_mask"] > 0]
-        valid_spots = valid_spots[["x", "y", "cell_mask", "corrected_bases"]].copy()
-        seq = valid_spots.corrected_bases.unique()
-        valid_spots["seq_id"] = np.nan
+        rabies_assignment["seq_id"] = np.nan
+        seq = rabies_assignment.corrected_bases.unique()
         for i, s in enumerate(seq):
-            valid_spots.loc[valid_spots.corrected_bases == s, "seq_id"] = i
+            rabies_assignment.loc[rabies_assignment.corrected_bases == s, "seq_id"] = i
+
+        valid_spots = rabies_assignment[rabies_assignment["cell_mask"] > 0]
+        valid_spots = valid_spots[
+            ["x", "y", "cell_mask", "seq_id", "corrected_bases"]
+        ].copy()
+
         spot_array = valid_spots[
             ["x", "y", "seq_id", "cell_mask", "corrected_bases"]
         ].values
         np.save(fname, spot_array)
+        # also save non assigned spots
+        fname = destination / f"{mouse}_{chamber}_{roi}_rabies_spots_unassigned.npy"
+        valid_spots = rabies_assignment[rabies_assignment["cell_mask"] <= 0]
+        valid_spots = valid_spots[
+            ["x", "y", "cell_mask", "seq_id", "corrected_bases"]
+        ].copy()
+        spot_array = valid_spots[
+            ["x", "y", "seq_id", "cell_mask", "corrected_bases"]
+        ].values
+        np.save(fname, spot_array)
+
     print("Done")
