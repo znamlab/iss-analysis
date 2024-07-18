@@ -40,3 +40,23 @@ def get_surrounding_slices(
         surrounding_rois.remove(ref_sec_pos.name)
     surrounding_rois = section_infos.loc[surrounding_rois].copy()
     return surrounding_rois
+
+
+def fit_plane_to_points(points):
+    """Fit a plane to the points
+
+    Args:
+        points (np.array): Array with the points to fit the plane. Each row is a point
+            and each column is a coordinate.
+
+    Returns:
+        np.array: Array with the plane coefficients [a, b, c, d] for the equation
+            ax + by + cz + d = 0
+    """
+    # Fit a plane, a x + b y + d = z to the fixed spots
+    A = np.c_[points[:, :2], np.ones(points.shape[0])]
+    B = -points[:, 2]
+    x = np.linalg.lstsq(A, B, rcond=None)[0]
+    c = 1
+    a, b, d = x
+    return np.array([a, b, c, d])
