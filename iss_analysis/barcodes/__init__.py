@@ -1,1 +1,2 @@
 from .main import error_correct_acquisition, assign_barcode_all_chambers
+from .probabilistic_assignment import assign_barcodes_to_masks
