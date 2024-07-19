@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 from sklearn.mixture import GaussianMixture
+from numba import njit
 from tqdm import tqdm
+from collections.abc import Callable
 
 import iss_preprocess as issp
 from iss_preprocess.call import BASES
@@ -430,6 +432,7 @@ def assign_barcodes_to_masks(
     return mask_assignment_full
 
 
+@njit
 def _spot_count_prior(nspots, p=0.9, m=0.1):
     """Compute the prior for the number of spots in a mask.
 
@@ -445,14 +448,15 @@ def _spot_count_prior(nspots, p=0.9, m=0.1):
     return -(nspots**p) / m
 
 
+@njit
 def _calc_log_likelihoods(
-    current_mask,
-    new_mask,
-    log_background_spot_prior,
-    sp_prior,
-    mask_counts,
-    spot_index,
-    log_spot_distribution,
+    current_mask: int,
+    new_mask: int,
+    log_background_spot_prior: float,
+    sp_prior: Callable[[int], float],
+    mask_counts: np.ndarray,
+    spot_index: int,
+    log_spot_distribution: np.ndarray,
 ):
     """Inner function of assign_barcodes_to_masks.
 
