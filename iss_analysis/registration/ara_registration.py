@@ -1,9 +1,86 @@
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from scipy.interpolate import LinearNDInterpolator
 from scipy.linalg import lstsq
 
 from . import utils
+
+
+def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
+    """Rotate the ARA coordinates to the slice orientation.
+
+    The ARA coordinates are in the DV, AP, ML orientation. We want to rotate the AP/ML
+    dimension so that the first dimension is parallel to the slicing plane.
+
+    Args:
+        spot_df (pd.DataFrame): DataFrame with the spots to rotate. Must contain columns
+            'ara_x', 'ara_y', 'ara_z', 'chamber', 'roi'
+        ref_chamber (str, optional): Reference chamber name. If None, will use the
+            median plane of all chambers in the DataFrame. Defaults to None.
+        ref_roi (int, optional): Reference roi number. If None, will use the median
+            plane of all rois in the DataFrame. Defaults to None.
+
+    Returns:
+        np.ndarray: 3x3 Rotation matrix to apply to the ARA coordinates to rotate them
+            to the slice orientation.
+    """
+    if ref_chamber is None:
+        if ref_roi is not None:
+            raise ValueError("If ref_roi is not None, ref_chamber must be provided")
+        chamber_rois = spot_df["chamber", "roi"].unique()
+    else:
+        chamber_rois = [(ref_chamber, ref_roi)]
+    all_planes = []
+    for chamber, roi in chamber_rois:
+        spots = spot_df.query(f"chamber == '{chamber}' and roi == {roi}")
+        ara_coords = spots[[f"ara_{i}" for i in "xyz"]].values
+        plane_coeffs = utils.fit_plane_to_points(ara_coords)
+        all_planes.append(plane_coeffs)
+    all_planes = np.array(all_planes)
+    median_plane = np.median(all_planes, axis=0)
+
+    # plane normal:
+    n = -median_plane[:3] / np.linalg.norm(median_plane[:3])
+    # dim 2 remains the same
+    v = np.array([0, 1, 0])
+    # dim 1 is orthogonal to the plane normal and u
+    u = np.cross(n, v)
+    new_base = np.c_[n, v, u]
+    return new_base
+
+
+def rotate_ara_coordinate_to_slice(
+    spot_df, transform=None, ref_chamber=None, ref_roi=None
+):
+    """Rotate the ARA coordinates to the slice orientation.
+
+    The ARA coordinates are in the DV, AP, ML orientation. We want to rotate the AP/ML
+    dimension so that the first dimension is parallel to the slicing plane.
+
+    Args:
+        spot_df (pd.DataFrame): DataFrame with the spots to rotate. Must contain columns
+            'ara_x', 'ara_y', 'ara_z', 'chamber', 'roi'
+        transform (np.ndarray, optional): Rotation matrix to apply to the ARA
+            coordinates to rotate them to the slice orientation. If None, will determine
+            the matrix using the reference chamber and roi. Defaults to None.
+        ref_chamber (str, optional): Reference chamber name. If None, will use the
+            median plane of all chambers in the DataFrame. Defaults to None.
+        ref_roi (int, optional): Reference roi number. If None, will use the median
+            plane of all rois in the DataFrame. Defaults to None.
+
+    Returns:
+    """
+    if transform is None:
+        transform = get_ara_to_slice_rotation_matrix(
+            spot_df, ref_chamber=ref_chamber, ref_roi=ref_roi
+        )
+
+    ara_coords = spot_df[[f"ara_{i}" for i in "xyz"]].values
+    rotated_coords = ara_coords @ transform
+    for i, col in enumerate("xyz"):
+        spot_df[f"ara_{col}_rot"] = rotated_coords[:, i]
+    return spot_df
 
 
 def get_registered_neighbours(
