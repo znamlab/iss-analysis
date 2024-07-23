@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 from numba import njit, prange
 
 
@@ -144,6 +145,68 @@ def assign_barcodes_to_masks(
                 mask_assignment, spots_in_range
             )
     return all_assignments, all_log_likelihoods
+
+
+
+def valid_spot_combination(spot_positions: np.array, distance_threshold: float, max_n: int=5):
+    """Combinations of spots that are all within distance_threshold of each other
+    
+    Args:
+        spot_positions (np.array): Nx2 array of spot positions
+        distance_threshold (float): maximum distance between spots
+        max_n (int): maximum number of spots in the combination
+        
+    Returns:
+        list of np.array: list of combinations of spots that are all within 
+            distance_threshold of each other
+    """
+    all_groups = []
+    spot_distances = np.linalg.norm(
+            spot_positions[:, None, :] - spot_positions[None, :, :], axis=2
+        )
+    # we won't have combination longer than the number of spots
+    max_n = min(max_n, len(spot_positions))
+    for n_in_group in range(1, max_n + 1):
+        spots = np.array(list(itertools.combinations(np.arange(len(spot_positions)), n_in_group)))
+        dim_pairs = np.array(list(itertools.combinations(np.arange(n_in_group), 2)))
+        valid_spots = np.ones(len(spots), dtype=bool)
+        for dim_pair in dim_pairs:
+            valid_spots &= spot_distances[spots[:, dim_pair[0]], spots[:, dim_pair[1]]] < distance_threshold
+        all_groups.extend(spots[valid_spots])
+    return all_groups
+
+
+def likelihood_change_background_combination(spot_ids, mask_assignments, mask_counts, log_dist_likelihood, log_background_spot_prior, p, m):
+    """Compute the likelihood change for a combination of spots to all become background spots.
+
+    Args:
+        spot_ids (np.array): 1D array with the spot IDs.
+        mask_assignments (np.array): 1D array with the current mask assignments.
+        mask_counts (np.array): 1D array with the current mask counts.
+        log_dist_likelihood (np.array): N spots x M masks array of distance likelihoods.
+        log_background_spot_prior (float): Log background spot prior.
+        p (float): Power of the spot count prior.
+        m (float): Length scale of the spot count prior.
+
+    Returns:
+        float: Likelihood change for this spot combination to become a background spots.
+    """
+    # new likelihood is new spot to the background
+    new_likelihood = log_background_spot_prior * len(spot_ids) 
+    # and new spot count prior for spots that were assigned
+    was_assigned = mask_assignments[spot_ids] != -1
+    changed_mask, changed_n = np.unique(mask_assignments[spot_ids][was_assigned], return_counts=True)
+    new_counts = mask_counts.copy()
+    new_counts[changed_mask] -= changed_n
+    new_likelihood += _spot_count_prior(new_counts[changed_mask], p, m).sum()
+    
+    # old likelihood is old spot to the background * log_bg
+    old_likelihood = log_background_spot_prior * (~was_assigned).sum()
+    # + old spot count prior for spots that were assigned
+    old_likelihood += _spot_count_prior(mask_counts[changed_mask], p, m).sum()
+    # + old distance likelihood for spots that were assigned
+    old_likelihood += log_dist_likelihood[spot_ids[was_assigned], mask_assignments[spot_ids][was_assigned]].sum()
+    return new_likelihood - old_likelihood
 
 
 def _assign_barcodes_to_masks(
