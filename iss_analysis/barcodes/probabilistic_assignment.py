@@ -191,7 +191,7 @@ def likelihood_change_background_combination(
     p,
     m,
 ):
-    """Compute the likelihood change for a combination of spots to all become background spots.
+    """Likelihood change for a combination of spots to all become background spots.
 
     Args:
         spot_ids (np.array): 1D array with the spot IDs.
@@ -224,6 +224,63 @@ def likelihood_change_background_combination(
     old_likelihood += log_dist_likelihood[
         spot_ids[was_assigned], mask_assignments[spot_ids][was_assigned]
     ].sum()
+    return new_likelihood - old_likelihood
+
+
+def likelihood_change_move_combination(
+    spot_ids,
+    target_masks,
+    mask_assignments,
+    mask_counts,
+    log_dist_likelihood,
+    log_background_spot_prior,
+    p,
+    m,
+):
+    """Likelihood change for a combination of spots to move to a new mask."""
+    spot_ids = np.asarray(spot_ids)
+    target_masks = np.asarray(target_masks)
+    if np.any(target_masks < 0):
+        raise ValueError("Target mask must be >= 0")
+    if len(np.unique(spot_ids)) < len(spot_ids):
+        raise ValueError("Spot IDs must be unique")
+
+    # New likelihood depends on the target mask
+    new_counts = np.repeat(mask_counts.copy(), len(target_masks)).reshape(
+        len(target_masks), len(mask_counts), order="F"
+    )
+    new_counts[np.arange(len(target_masks)), target_masks] += len(spot_ids)
+    bg = mask_assignments[spot_ids] == -1
+    changed_mask, changed_n = np.unique(
+        mask_assignments[spot_ids][~bg], return_counts=True
+    )
+    new_counts[:, changed_mask] -= changed_n
+    new_likelihood = _spot_count_prior(
+        new_counts[np.arange(len(target_masks)), target_masks], p, m
+    )
+    # if changed_mask is not target, we need to add to the new likelihood
+    masks2check = np.repeat(changed_mask, len(target_masks)).reshape(
+        len(target_masks), len(changed_mask), order="F"
+    )
+    already_done = masks2check == target_masks[:, None]
+    new_likelihood += _spot_count_prior(
+        new_counts[:, changed_mask] * (~already_done), p, m
+    ).sum(axis=1)
+    # distance lieklihood between spots and target masks
+    ids, targets = np.meshgrid(spot_ids, target_masks, indexing="ij")
+    new_likelihood += log_dist_likelihood[ids, targets].sum(axis=0)
+    # this includes also cases where the mask did not actually change
+
+    old_likelihood = _spot_count_prior(mask_counts[target_masks], p, m)
+    old_likelihood += log_dist_likelihood[
+        spot_ids[~bg], mask_assignments[spot_ids[~bg]]
+    ].sum()
+    old_likelihood += log_background_spot_prior * bg.sum()
+    # add spot count for the source mask
+    old_likelihood += _spot_count_prior(
+        mask_counts[changed_mask] * (~already_done), p, m
+    ).sum(axis=1)
+
     return new_likelihood - old_likelihood
 
 
