@@ -8,7 +8,8 @@ import flexiznam as flz
 from znamutils import slurm_it
 import iss_preprocess as issp
 
-from .barcodes import get_barcodes, correct_barcode_sequences, assign_barcodes_to_masks
+from .barcodes import get_barcodes, correct_barcode_sequences
+from .probabilistic_assignment import assign_barcodes_to_masks
 from ..io import get_chamber_datapath
 from iss_preprocess.segment.cells import get_cell_masks
 
