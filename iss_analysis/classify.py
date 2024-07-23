@@ -28,7 +28,7 @@ def classify_cells(
     exons_df, genes = load_data_tasic_2018(ref_data, filter_neurons=filter_neurons)
     sc_data = (
         exons_df.set_index(classify_by)
-        .filter(regex="\d")
+        .filter(regex=r"\d")
         .set_axis(genes, axis=1, inplace=False)
     )
 
