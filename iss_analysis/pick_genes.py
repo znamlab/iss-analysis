@@ -43,8 +43,8 @@ def resample_counts(exons_matrix, cluster_means, efficiency=0.01):
     """
     assert 0 < efficiency <= 1
     cluster_means = cluster_means * efficiency
-    #Interesting error, on Windows np.random.binomial doesnt work with 64 bit input. Force it to 32 bit
-    exons_matrix = np.random.binomial(n=exons_matrix.astype('int32'), p=efficiency)
+    # Interesting error, on Windows np.random.binomial doesnt work with 64 bit input. Force it to 32 bit
+    exons_matrix = np.random.binomial(n=exons_matrix.astype("int32"), p=efficiency)
     return exons_matrix, cluster_means
 
 
