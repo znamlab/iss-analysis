@@ -60,7 +60,7 @@ def assign_barcodes_to_masks(
 
     assignments = pd.Series(index=spots.index, dtype=int)
     for barcode in tqdm(barcodes, disable=verbose == 0):
-        barcode_df = spots[spots[base_column] == barcode]
+        barcode_df = spots[spots[base_column].astype(str) == barcode]
         spot_positions = barcode_df[["x", "y"]].values
         mask_assignments = assign_single_barcode(
             spot_positions=spot_positions,
