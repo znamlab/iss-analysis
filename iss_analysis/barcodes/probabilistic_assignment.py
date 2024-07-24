@@ -19,9 +19,9 @@ def assign_barcodes_to_masks(
     max_distance_to_mask=200,
     inter_spot_distance_threshold=50,
     max_spot_group_size=5,
-    verbose=False,
+    max_total_combinations=1e6,
+    verbose=1,
     base_column="bases",
-    seed=123,
 ):
     """Assign barcodes to masks using a probabilistic model.
 
@@ -41,15 +41,16 @@ def assign_barcodes_to_masks(
             between spots that can be moved together. Default is 50.
         max_spot_group_size (int): Maximum number of spots in a grouped moved. Default
             is 5.
-        verbose (bool): Whether to print the progress. Default is False.
+        max_total_combinations (int): Maximum number of combinations to consider. After
+            reach this number, groups of larger number of spots will not be considered.
+            Default is 1e6.
+        verbose (int): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
-        seed (int): Seed for the random number generator. Default is 123.
 
     Returns:
         np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
             array with the mask assignment for each iteration.
     """
-    np.random.seed(seed)
 
     # get mask and spot positions
     mask_centers = masks[["x", "y"]].values
@@ -72,9 +73,10 @@ def assign_barcodes_to_masks(
             m=m,
             spot_distribution_sigma=spot_distribution_sigma,
             max_iterations=max_iterations,
-            verbose=verbose,
+            verbose=max(0, verbose - 1),
             debug=False,
             max_spot_group_size=max_spot_group_size,
+            max_total_combinations=max_total_combinations,
         )
         assignments.loc[barcode_df.index] = mask_assignments
 
@@ -91,6 +93,7 @@ def assign_single_barcode(
     m,
     spot_distribution_sigma,
     max_spot_group_size=5,
+    max_total_combinations=1e6,
     verbose=2,
     mask_assignments=None,
     max_iterations=100,
@@ -110,6 +113,9 @@ def assign_single_barcode(
         m (float): Length scale of the spot count prior.
         spot_distribution_sigma (float): Sigma for the spot distribution.
         max_spot_group_size (int): Maximum number of spots in a group.
+        max_total_combinations (int): Maximum number of combinations to consider.
+            After this number, groups of larger number of spots will not be considered.
+            Default is 1e6.
         verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
             number. Default 2.
         mask_assignments (np.array): Nx1 array of initial mask assignments. Default None.
@@ -134,26 +140,36 @@ def assign_single_barcode(
     )
     log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
 
+    combinations = valid_spot_combinations(
+        spot_positions,
+        inter_spot_distance_threshold,
+        max_n=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
+        verbose=verbose > 1,
+    )
     new_assignments = mask_assignments.copy()
     if debug:
         all_assignments = [new_assignments.copy()]
     for i in range(max_iterations):
         if verbose > 0:
             print(f"---- Iteration {i} ----")
+            # keep level 2 debuging onl for first iteration
+            verb_inside = 1 if i else verbose
+        else:
+            verb_inside = 0
         new_assignments, spot_moved = assign_single_barcode_single_round(
             spot_positions=spot_positions,
             mask_positions=mask_positions,
             mask_assignments=new_assignments,
             max_distance_to_mask=max_distance_to_mask,
-            inter_spot_distance_threshold=inter_spot_distance_threshold,
             log_background_spot_prior=log_background_spot_prior,
             p=p,
             m=m,
             spot_distribution_sigma=spot_distribution_sigma,
             distances=distances,
             log_dist_likelihood=log_dist_likelihood,
-            max_spot_group_size=max_spot_group_size,
-            verbose=verbose,
+            combinations=combinations,
+            verbose=verb_inside,
         )
 
         if verbose > 0:
@@ -161,7 +177,26 @@ def assign_single_barcode(
             print(f"Moved {nsp} spots in {len(spot_moved)} groups")
 
         if len(spot_moved) == 0:
-            break
+            if verbose > 0:
+                print("Trying to move all spots to background")
+            new_assignments, spot_moved = assign_single_barcode_all_to_background(
+                spot_positions=spot_positions,
+                mask_positions=mask_positions,
+                mask_assignments=new_assignments,
+                log_background_spot_prior=log_background_spot_prior,
+                p=p,
+                m=m,
+                spot_distribution_sigma=spot_distribution_sigma,
+                distances=distances,
+                log_dist_likelihood=log_dist_likelihood,
+            )
+            if len(spot_moved) == 0:
+                if debug:
+                    all_assignments.append(new_assignments.copy())
+                break
+            if verbose > 0:
+                nsp = np.sum([len(combi) for combi in spot_moved])
+                print(f"Moved {nsp} spots in {len(spot_moved)} masks to background")
         if debug:
             all_assignments.append(new_assignments.copy())
     if debug:
@@ -174,14 +209,16 @@ def assign_single_barcode_single_round(
     mask_positions,
     mask_assignments,
     max_distance_to_mask,
-    inter_spot_distance_threshold,
     log_background_spot_prior,
     p,
     m,
     spot_distribution_sigma,
+    inter_spot_distance_threshold=None,
+    max_spot_group_size=5,
+    max_total_combinations=1e6,
     distances=None,
     log_dist_likelihood=None,
-    max_spot_group_size=5,
+    combinations=None,
     verbose=2,
 ):
     """Single round of mask assignment.
@@ -191,16 +228,23 @@ def assign_single_barcode_single_round(
         mask_positions (np.array): Mx2 array of mask positions.
         mask_assignments (np.array): Nx1 array of initial mask assignments.
         max_distance_to_mask (float): Maximum distance between spots and masks.
-        inter_spot_distance_threshold (float): Maximum distance between spots.
         log_background_spot_prior (float): Log background spot prior.
         p (float): Power of the spot count prior.
         m (float): Length scale of the spot count prior.
         spot_distribution_sigma (float): Sigma of the spot distribution.
+        inter_spot_distance_threshold (float, optional): Maximum distance between spots.
+            Required if combinations is None. Default None.
+        max_spot_group_size (int, optional): Maximum number of spots in a group.
+            Ignored if combinations is not None. Default 5.
+        max_total_combinations (int, optional): Maximum number of combinations to
+            consider. After this number, groups of larger number of spots will not be
+            considered. Ignored if combinations is not None. Default is 1e6.
         distances (np.array, optional): NxM array of distances between spots and masks.
             Default None.
         log_dist_likelihood (np.array, optional): NxM array of log likelihoods of the
             distances. Default None.
-        max_spot_group_size (int): Maximum number of spots in a group.
+        combinations (list, optional): List of combinations of spots that are all within
+            distance_threshold of each other. Default None.
         verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
             number. Default 2.
 
@@ -213,12 +257,19 @@ def assign_single_barcode_single_round(
     mask_counts = np.bincount(
         mask_assignments[mask_assignments >= 0], minlength=len(mask_positions)
     )
-    combinations = valid_spot_combination(
-        spot_positions,
-        inter_spot_distance_threshold,
-        max_n=max_spot_group_size,
-        verbose=verbose > 1,
-    )
+    if combinations is None:
+        if inter_spot_distance_threshold is None:
+            raise AttributeError(
+                "inter_spot_distance_threshold must be provided "
+                + "if combinations is None"
+            )
+        combinations = valid_spot_combinations(
+            spot_positions,
+            inter_spot_distance_threshold,
+            max_n=max_spot_group_size,
+            max_total_combinations=max_total_combinations,
+            verbose=verbose > 1,
+        )
     if verbose > 1:
         print(f"Found {len(combinations)} valid spot combinations")
     if distances is None:
@@ -354,8 +405,12 @@ def assign_single_barcode_all_to_background(
     return mask_assignments, spot_moved
 
 
-def valid_spot_combination(
-    spot_positions: np.array, distance_threshold: float, max_n: int = 5, verbose=True
+def valid_spot_combinations(
+    spot_positions: np.array,
+    distance_threshold: float,
+    max_n: int = 5,
+    verbose=True,
+    max_total_combinations: int = 1e6,
 ):
     """Combinations of spots that are all within distance_threshold of each other
 
@@ -364,6 +419,8 @@ def valid_spot_combination(
         distance_threshold (float): maximum distance between spots
         max_n (int): maximum number of spots in the combination
         verbose (bool): print progress
+        max_total_combinations (int): maximum number of combinations to consider
+            Default is 1e6
 
     Returns:
         list of np.array: list of combinations of spots that are all within
@@ -373,7 +430,8 @@ def valid_spot_combination(
     if max_n == 0:
         return []
     all_groups = [np.arange(len(spot_positions)).reshape(-1, 1)]
-    if max_n == 1:
+    npos = len(spot_positions)
+    if (max_n == 1) or (npos < 2) or (npos >= max_total_combinations):
         return list(all_groups[0])
 
     close_enough = (
@@ -384,7 +442,8 @@ def valid_spot_combination(
     close_enough = np.triu(close_enough, k=+1)
     pairs = np.array([(a, b) for a, b in zip(*np.where(close_enough))])
     all_groups.append(pairs)
-    if (max_n == 2) or (len(pairs) == 0):
+    ntot = np.sum([len(o) for o in all_groups])
+    if (max_n == 2) or (len(pairs) == 0) or (ntot >= max_total_combinations):
         out = []
         for gp in all_groups:
             out.extend(gp)
@@ -406,6 +465,11 @@ def valid_spot_combination(
         all_groups.append(
             np.vstack([np.hstack([g1[i], g0[j]]) for i, j in zip(*np.where(valid))])
         )
+        ntot += len(all_groups[-1])
+        if ntot >= max_total_combinations:
+            if verbose:
+                print(f"Stopped at {ntot} combinations")
+            break
         assert all_groups[-1].shape[1] == n_in_group
 
     out = []
