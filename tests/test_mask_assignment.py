@@ -9,22 +9,22 @@ def test_valid_spot_combination():
     distance_threshold = 10
     # set of spots too far from each other
     spot_positions = np.vstack([(0, 0), (100, 100), (200, 200)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold)
+    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
     assert len(valid) == len(spot_positions)
 
     # set of spots very close to each other
     spot_positions = np.vstack([(0, 0), (1, 1), (2, 2)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold)
+    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
     assert len(valid) == 7
 
     # set of spots very close to each other, with one far away
     spot_positions = np.vstack([(0, 0), (1, 1), (2, 2), (100, 100)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold)
+    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
     assert len(valid) == 8
 
     # spots close to each other by pairs but not triples
     spot_positions = np.vstack([(0, 0), (0, 7), (0, 14)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold)
+    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
     assert len(valid) == 5
 
 
@@ -178,6 +178,153 @@ def test_likelihood_change_move_combination():
         )
 
 
+def test_assign_single_round():
+    spot_positions = np.array(
+        [
+            [1, 1],
+            [0, 1],
+            [1, 0],
+            [2, 1],
+            [1, 2],
+            [2, 2],
+            [0, 0],
+            [100, 100],
+            [101, 101],
+            [102, 102],
+        ]
+    )
+    mask_positions = np.array([[1, 1], [2, 2], [100, 102], [400, 400]])
+    mask_assignments = np.array([0, 1, 0, 2, 1, -1, 1, 3, -1, -1])
+    mask_counts = np.bincount(
+        mask_assignments[mask_assignments >= 0], minlength=len(mask_positions)
+    )
+    mask_distance_threshold = 100
+    spot_distance_threshold = 10
+    log_background_spot_prior = 1
+    spot_distribution_sigma = 1
+    p = 1
+    m = 1
+    spot_moved = [1]
+    new_assignment = mask_assignments.copy()
+    niter = 0
+    all_assignments = [new_assignment]
+    while len(spot_moved):
+        new_assignment, spot_moved = pa.assign_single_barcode_single_round(
+            spot_positions=spot_positions,
+            mask_positions=mask_positions,
+            mask_assignments=new_assignment,
+            max_distance_to_mask=mask_distance_threshold,
+            inter_spot_distance_threshold=spot_distance_threshold,
+            log_background_spot_prior=log_background_spot_prior,
+            p=p,
+            m=m,
+            spot_distribution_sigma=spot_distribution_sigma,
+            max_spot_group_size=11,
+            verbose=0,
+        )
+        all_assignments.append(new_assignment)
+        niter += 1
+        if niter > 10:
+            raise ValueError("Too many iterations")
+    # with the weird parameters, background is always the best choice
+    # (but it might take a few iterations)
+    assert np.all(new_assignment == -1)
+
+    # better params and new spots
+    p = 0.9
+    m = 0.1
+    background_spot_prior = 0.0001
+    spread = 10 / 0.2
+    cov = [[spread, 0], [0, spread]]
+    rng = np.random.default_rng(seed=12)
+    x, y = rng.multivariate_normal([10, 10], cov, 10).T
+    spot_positions = np.vstack([x, y]).T
+    mask_positions = np.array([[10, 10], [20, 20], [400, 402], [1000, 1000]])
+    mask_assignments = rng.choice([0, 1, 2, 3], len(spot_positions))
+    mask_distance_threshold = 600
+    spot_distance_threshold = 100
+    spot_distribution_sigma = 60
+    spot_moved = [1]
+    new_assignment, spot_moved = pa.assign_single_barcode_single_round(
+        spot_positions=spot_positions,
+        mask_positions=mask_positions,
+        mask_assignments=mask_assignments,
+        max_distance_to_mask=mask_distance_threshold,
+        inter_spot_distance_threshold=spot_distance_threshold,
+        log_background_spot_prior=np.log(background_spot_prior),
+        p=p,
+        m=m,
+        spot_distribution_sigma=spot_distribution_sigma,
+        max_spot_group_size=11,
+        verbose=0,
+    )
+    # now the spots should be assigned to the closest mask
+    assert np.all(new_assignment == 0)
+
+    # with lower max_spot_group_size, cannot move all spots at once
+    iter = 0
+    new_assignment = mask_assignments.copy()
+    spot_moved = [1]
+    while len(spot_moved):
+        iter += 1
+        new_assignment, spot_moved = pa.assign_single_barcode_single_round(
+            spot_positions=spot_positions,
+            mask_positions=mask_positions,
+            mask_assignments=new_assignment,
+            max_distance_to_mask=mask_distance_threshold,
+            inter_spot_distance_threshold=spot_distance_threshold,
+            log_background_spot_prior=np.log(background_spot_prior),
+            p=p,
+            m=m,
+            spot_distribution_sigma=spot_distribution_sigma,
+            max_spot_group_size=5,
+            verbose=0,
+        )
+        if iter > 10:
+            raise ValueError("Too many iterations")
+    # with the seed = 12, we have an initial assignment with 2 spots in mask 1 and 1
+    # spot in mask 0, which means that it's easier to put everything in mask 1 given
+    # that the distance isn't big
+    assert np.all(new_assignment == 1)
+
+    # finally, 3 blobs of 5, 10, and 20 spots around masks 2, 0 and 3
+    x, y = rng.multivariate_normal([400, 402], cov, 5).T
+    spot_positions = np.vstack([spot_positions, np.vstack([x, y]).T])
+    x, y = rng.multivariate_normal([1000, 1000], cov, 20).T
+    spot_positions = np.vstack([spot_positions, np.vstack([x, y]).T])
+    closest = [0] * 10 + [2] * 5 + [3] * 20
+    new_assignment = np.array(closest)
+    # move 2 spots of 0 to 1 to give so
+    new_assignment[[0, 1]] = 1
+    # and a couple of others
+    new_assignment[[5, 6]] = 2
+    new_assignment[[7, 8]] = 3
+    new_assignment[20:23] = 1
+    new_assignment[24] = 0
+    new_assignment[30:35] = -1
+    iter = 0
+    spot_moved = [1]
+    while len(spot_moved):
+        new_assignment, spot_moved = pa.assign_single_barcode_single_round(
+            spot_positions=spot_positions,
+            mask_positions=mask_positions,
+            mask_assignments=new_assignment,
+            max_distance_to_mask=mask_distance_threshold,
+            inter_spot_distance_threshold=spot_distance_threshold,
+            log_background_spot_prior=np.log(background_spot_prior),
+            p=p,
+            m=m,
+            spot_distribution_sigma=spot_distribution_sigma,
+            max_spot_group_size=5,
+            verbose=0,
+        )
+        iter += 1
+        if iter > 10:
+            raise ValueError("Too many iterations")
+    # now the spots should be assigned to the closest mask
+    assert np.all(new_assignment == closest)
+
+
 def create_data():
     # to make the number easy to compute, take weird parameters
     log_background_spot_prior = 1
@@ -209,6 +356,7 @@ def create_data():
 
 
 if __name__ == "__main__":
+    test_assign_single_round()
     test_likelihood_change_move_combination()
     test_valid_spot_combination()
     test_likelihood_change_background_combination()

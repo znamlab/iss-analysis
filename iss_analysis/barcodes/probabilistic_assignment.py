@@ -150,8 +150,86 @@ def assign_barcodes_to_masks(
 def assign_single_barcode(
     spot_positions,
     mask_positions,
+    max_distance_to_mask,
+    inter_spot_distance_threshold,
+    background_spot_prior,
+    p,
+    m,
+    spot_distribution_sigma,
+    max_spot_group_size=5,
+    verbose=2,
+    mask_assignments=None,
+    max_iterations=100,
+    debug=False,
+):
+    """Assign a single barcode to masks.
+
+    Iteratively assign spots to masks until no spots are moving.
+
+    Args:
+        spot_positions (np.array): Nx2 array of spot positions.
+        mask_positions (np.array): Mx2 array of mask positions.
+        max_distance_to_mask (float): Maximum distance between spots and masks.
+        inter_spot_distance_threshold (float): Maximum distance between spots.
+        background_spot_prior (float): Prior for the background spots.
+        p (float): Power of the spot count prior.
+        m (float): Length scale of the spot count prior.
+        spot_distribution_sigma (float): Sigma for the spot distribution.
+        max_spot_group_size (int): Maximum number of spots in a group.
+        verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
+            number. Default 2.
+        mask_assignments (np.array): Nx1 array of initial mask assignments. Default None.
+        max_iterations (int): Maximum number of iterations. Default 100.
+        debug (bool): Whether to return debug information. Default False.
+
+    Returns:
+        np.array: 1D array with the mask assignment if debug is False. Otherwise 2D
+            array with the mask assignment for each iteration.
+    """
+    log_background_spot_prior = np.log(background_spot_prior)
+    if mask_assignments is None:
+        distances = np.linalg.norm(
+            spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
+        )
+        mask_assignments = np.argmin(distances, axis=1)
+
+    new_assignments = mask_assignments.copy()
+    if debug:
+        all_assignments = [new_assignments.copy()]
+    for i in range(max_iterations):
+        if verbose > 0:
+            print(f"---- Iteration {i} ----")
+        new_assignments, spot_moved = assign_single_barcode_single_round(
+            spot_positions=spot_positions,
+            mask_positions=mask_positions,
+            mask_assignments=new_assignments,
+            max_distance_to_mask=max_distance_to_mask,
+            inter_spot_distance_threshold=inter_spot_distance_threshold,
+            log_background_spot_prior=log_background_spot_prior,
+            p=p,
+            m=m,
+            spot_distribution_sigma=spot_distribution_sigma,
+            max_spot_group_size=max_spot_group_size,
+            verbose=verbose,
+        )
+
+        if verbose > 0:
+            nsp = np.sum([len(combi) for combi in spot_moved])
+            print(f"Moved {nsp} spots in {len(spot_moved)} groups")
+
+        if len(spot_moved) == 0:
+            break
+        if debug:
+            all_assignments.append(new_assignments.copy())
+    if debug:
+        return np.vstack(all_assignments)
+    return new_assignments
+
+
+def assign_single_barcode_single_round(
+    spot_positions,
+    mask_positions,
     mask_assignments,
-    mask_counts,
     max_distance_to_mask,
     inter_spot_distance_threshold,
     log_background_spot_prior,
@@ -159,15 +237,14 @@ def assign_single_barcode(
     m,
     spot_distribution_sigma,
     max_spot_group_size=5,
-    verbose=True,
+    verbose=2,
 ):
-    """Assign a single barcode to masks.
+    """Single round of mask assignment.
 
     Args:
         spot_positions (np.array): Nx2 array of spot positions.
         mask_positions (np.array): Mx2 array of mask positions.
         mask_assignments (np.array): Nx1 array of initial mask assignments.
-        mask_counts (np.array): Mx1 array of mask counts.
         max_distance_to_mask (float): Maximum distance between spots and masks.
         inter_spot_distance_threshold (float): Maximum distance between spots.
         log_background_spot_prior (float): Log background spot prior.
@@ -175,18 +252,25 @@ def assign_single_barcode(
         m (float): Length scale of the spot count prior.
         spot_distribution_sigma (float): Sigma of the spot distribution.
         max_spot_group_size (int): Maximum number of spots in a group.
-        verbose (bool): Whether to print the progress.
+        verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
+            number. Default 2.
 
     Returns:
         np.array: new mask assignments.
-        int: number of spots moved.
+        list: list of combination of spots that were moved.
     """
-    if verbose:
+    if verbose > 1:
         print(f"Assigning {len(spot_positions)} spots to {len(mask_positions)} masks")
-    combinations = valid_spot_combination(
-        spot_positions, inter_spot_distance_threshold, max_n=max_spot_group_size
+    mask_counts = np.bincount(
+        mask_assignments[mask_assignments >= 0], minlength=len(mask_positions)
     )
-    if verbose:
+    combinations = valid_spot_combination(
+        spot_positions,
+        inter_spot_distance_threshold,
+        max_n=max_spot_group_size,
+        verbose=verbose > 1,
+    )
+    if verbose > 1:
         print(f"Found {len(combinations)} valid spot combinations")
     distances = np.linalg.norm(
         spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
@@ -198,7 +282,9 @@ def assign_single_barcode(
 
     # compute the likelihood of each combination
     likelihood_changes, best_targets = np.zeros((2, len(combinations)), dtype=float)
-    for i_combi, combi in tqdm(enumerate(combinations), total=len(combinations)):
+    for i_combi, combi in tqdm(
+        enumerate(combinations), total=len(combinations), disable=verbose == 0
+    ):
         bg_likelihood = likelihood_change_background_combination(
             combi,
             mask_assignments,
@@ -215,16 +301,19 @@ def assign_single_barcode(
         current_assignments = np.unique(mask_assignments[combi])
         # don't move to a mask that is already assigned
         valid_targets = np.setdiff1d(valid_targets, current_assignments)
-        move_likelihood = likelihood_change_move_combination(
-            combi,
-            target_masks=valid_targets,
-            mask_assignments=mask_assignments,
-            mask_counts=mask_counts,
-            log_dist_likelihood=log_dist_likelihood,
-            log_background_spot_prior=log_background_spot_prior,
-            p=p,
-            m=m,
-        )
+        if len(valid_targets) == 0:
+            move_likelihood = -np.inf
+        else:
+            move_likelihood = likelihood_change_move_combination(
+                combi,
+                target_masks=valid_targets,
+                mask_assignments=mask_assignments,
+                mask_counts=mask_counts,
+                log_dist_likelihood=log_dist_likelihood,
+                log_background_spot_prior=log_background_spot_prior,
+                p=p,
+                m=m,
+            )
         # keep only the best move
         if np.max(move_likelihood) > bg_likelihood:
             likelihood_changes[i_combi] = np.max(move_likelihood)
@@ -242,20 +331,21 @@ def assign_single_barcode(
         target = best_targets[i_combi]
         if target in mask_changed:
             continue
-        source_masks = mask_assignments[combinations[i_combi]]
+        spot_combi = combinations[i_combi]
+        source_masks = mask_assignments[spot_combi]
         if any([m in mask_changed for m in source_masks]):
             continue
-        new_assignments[combinations[i_combi]] = target
-        spot_moved.append(combinations[i_combi])
+        new_assignments[spot_combi] = target
+        spot_moved.append(spot_combi)
         if target != -1:
             mask_changed.add(target)
-        mask_changed.update(source_masks)
+        mask_changed.update(source_masks[source_masks != -1])
 
     return new_assignments, spot_moved
 
 
 def valid_spot_combination(
-    spot_positions: np.array, distance_threshold: float, max_n: int = 5
+    spot_positions: np.array, distance_threshold: float, max_n: int = 5, verbose=True
 ):
     """Combinations of spots that are all within distance_threshold of each other
 
@@ -263,6 +353,7 @@ def valid_spot_combination(
         spot_positions (np.array): Nx2 array of spot positions
         distance_threshold (float): maximum distance between spots
         max_n (int): maximum number of spots in the combination
+        verbose (bool): print progress
 
     Returns:
         list of np.array: list of combinations of spots that are all within
@@ -283,7 +374,7 @@ def valid_spot_combination(
     close_enough = np.triu(close_enough, k=+1)
     pairs = np.array([(a, b) for a, b in zip(*np.where(close_enough))])
     all_groups.append(pairs)
-    if max_n == 2:
+    if (max_n == 2) or (len(pairs) == 0):
         out = []
         for gp in all_groups:
             out.extend(gp)
@@ -292,13 +383,16 @@ def valid_spot_combination(
     g0 = all_groups[0].reshape(-1)
     for n_in_group in range(3, max_n + 1):
         g1 = all_groups[-1]
-        print(f"The {len(g1)} combinations of {n_in_group-1} spots")
+        if verbose:
+            print(f"{len(g1)} combinations of {n_in_group-1} spots")
 
         valid = np.ones((len(g1), len(g0)), dtype=bool)
         for dim in range(g1.shape[1]):
             valid &= close_enough[g1[:, dim], :]
             valid &= g1[:, dim, None] != g0[None, :]
-
+        if not valid.any():
+            # no more valid combinations
+            break
         all_groups.append(
             np.vstack([np.hstack([g1[i], g0[j]]) for i, j in zip(*np.where(valid))])
         )
