@@ -315,7 +315,7 @@ def run_mask_assignment(
         flexilims_session=flm_sess, name=assigned_datasets_name
     )
     _log(f"Error corrected barcodes from {error_dataset.path_full}", verbose)
-    _log(f"Flexilims dataset {assigned_dataset.full_name} with attributes:", verbose)
+    _log(f"Flexilims dataset {assigned_dataset.full_name} with attributes:\n", verbose)
     _log(
         "\n".join(f"{k}: {v}" for k, v in assigned_dataset.extra_attributes.items()),
         verbose,
