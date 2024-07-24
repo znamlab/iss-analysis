@@ -325,6 +325,36 @@ def test_assign_single_round():
     assert np.all(new_assignment == closest)
 
 
+def test_assign_single_barcode_all_to_background():
+    p = 0.9
+    m = 0.1
+    background_spot_prior = 0.0001
+    spread = 10 / 0.2
+    cov = [[spread, 0], [0, spread]]
+    rng = np.random.default_rng(seed=12)
+    mask_positions = np.array([[10, 10], [20, 20], [400, 402], [1000, 1000]])
+    spot_distribution_sigma = 60
+    for nspots in range(5):
+        x, y = rng.multivariate_normal([10, 10], cov, nspots).T
+        spot_positions = np.vstack([x, y]).T
+        mask_assignments = np.zeros(len(spot_positions), dtype=int)
+        new_ass, spot_moved = pa.assign_single_barcode_all_to_background(
+            spot_positions,
+            mask_positions,
+            mask_assignments,
+            log_background_spot_prior=np.log(background_spot_prior),
+            p=p,
+            m=m,
+            spot_distribution_sigma=spot_distribution_sigma,
+            distances=None,
+            log_dist_likelihood=None,
+        )
+        # with default param we need 3 spots to be a cell
+        expected = -1 if nspots < 3 else 0
+        assert len(spot_moved) == (expected == -1)
+        assert np.all(new_ass == expected)
+
+
 def create_data():
     # to make the number easy to compute, take weird parameters
     log_background_spot_prior = 1
@@ -356,6 +386,7 @@ def create_data():
 
 
 if __name__ == "__main__":
+    test_assign_single_barcode_all_to_background()
     test_assign_single_round()
     test_likelihood_change_move_combination()
     test_valid_spot_combination()
