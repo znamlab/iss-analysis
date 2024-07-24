@@ -518,9 +518,7 @@ def likelihood_change_background_combination(
     new_likelihood = log_background_spot_prior * len(spot_ids)
     # and new spot count prior for spots that were assigned
     was_assigned = mask_assignments[spot_ids] != -1
-    changed_mask, changed_n = np.unique(
-        mask_assignments[spot_ids][was_assigned], return_counts=True
-    )
+    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][was_assigned])
     new_counts = mask_counts.copy()
     new_counts[changed_mask] -= changed_n
     new_likelihood += _spot_count_prior(new_counts[changed_mask], p, m).sum()
@@ -573,9 +571,7 @@ def likelihood_change_move_combination(
     )
     new_counts[np.arange(len(target_masks)), target_masks] += len(spot_ids)
     bg = mask_assignments[spot_ids] == -1
-    changed_mask, changed_n = np.unique(
-        mask_assignments[spot_ids][~bg], return_counts=True
-    )
+    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][~bg])
     new_counts[:, changed_mask] -= changed_n
     new_likelihood = _spot_count_prior(
         new_counts[np.arange(len(target_masks)), target_masks], p, m
@@ -589,7 +585,7 @@ def likelihood_change_move_combination(
         new_counts[:, changed_mask] * (~already_done), p, m
     ).sum(axis=1)
     # distance lieklihood between spots and target masks
-    ids, targets = np.meshgrid(spot_ids, target_masks, indexing="ij")
+    ids, targets = meshgrid_ij(spot_ids, target_masks)
     new_likelihood += log_dist_likelihood[ids, targets].sum(axis=0)
     # this includes also cases where the mask did not actually change
 
@@ -634,3 +630,17 @@ def unique_counts(arr):
     counts = np.empty(unique.shape, dtype=np.int64)
     counts = np.diff(np.where(mask)[0])
     return unique, counts
+
+
+@njit
+# make numba compatible version of meshgrid for 2d arrays with ij indexing
+def meshgrid_ij(x, y):
+    x = np.ascontiguousarray(x)
+    y = np.ascontiguousarray(y)
+    xx = np.empty((len(x), len(y)), dtype=x.dtype)
+    yy = np.empty((len(x), len(y)), dtype=y.dtype)
+    for i in range(len(x)):
+        xx[i] = x[i]
+    for j in range(len(y)):
+        yy[:, j] = y[j]
+    return xx, yy
