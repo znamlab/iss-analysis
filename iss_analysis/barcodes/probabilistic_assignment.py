@@ -121,11 +121,18 @@ def assign_single_barcode(
             array with the mask assignment for each iteration.
     """
     log_background_spot_prior = np.log(background_spot_prior)
+    if not len(spot_positions):
+        raise ValueError("No spots to assign")
     if mask_assignments is None:
         distances = np.linalg.norm(
             spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
         )
         mask_assignments = np.argmin(distances, axis=1)
+
+    distances = np.linalg.norm(
+        spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
+    )
+    log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
 
     new_assignments = mask_assignments.copy()
     if debug:
@@ -143,6 +150,8 @@ def assign_single_barcode(
             p=p,
             m=m,
             spot_distribution_sigma=spot_distribution_sigma,
+            distances=distances,
+            log_dist_likelihood=log_dist_likelihood,
             max_spot_group_size=max_spot_group_size,
             verbose=verbose,
         )
@@ -170,6 +179,8 @@ def assign_single_barcode_single_round(
     p,
     m,
     spot_distribution_sigma,
+    distances=None,
+    log_dist_likelihood=None,
     max_spot_group_size=5,
     verbose=2,
 ):
@@ -185,6 +196,10 @@ def assign_single_barcode_single_round(
         p (float): Power of the spot count prior.
         m (float): Length scale of the spot count prior.
         spot_distribution_sigma (float): Sigma of the spot distribution.
+        distances (np.array, optional): NxM array of distances between spots and masks.
+            Default None.
+        log_dist_likelihood (np.array, optional): NxM array of log likelihoods of the
+            distances. Default None.
         max_spot_group_size (int): Maximum number of spots in a group.
         verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
             number. Default 2.
@@ -206,10 +221,12 @@ def assign_single_barcode_single_round(
     )
     if verbose > 1:
         print(f"Found {len(combinations)} valid spot combinations")
-    distances = np.linalg.norm(
-        spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
-    )
-    log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+    if distances is None:
+        distances = np.linalg.norm(
+            spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
+        )
+    if log_dist_likelihood is None:
+        log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
 
     if len(combinations) == 0:
         return None
