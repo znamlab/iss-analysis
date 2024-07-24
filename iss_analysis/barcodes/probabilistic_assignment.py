@@ -607,3 +607,17 @@ def _spot_count_prior(nspots: int, p: float, m: float):
 
     """
     return -(nspots**p) / m
+
+
+@njit
+def unique_counts(arr):
+    arr = np.ascontiguousarray(arr)
+    arr = np.sort(arr)
+    mask = np.empty(len(arr) + 1, dtype=np.bool_)
+    mask[0] = True
+    mask[1:-1] = arr[1:] != arr[:-1]
+    mask[-1] = True
+    unique = arr[mask[:-1]]
+    counts = np.empty(unique.shape, dtype=np.int64)
+    counts = np.diff(np.where(mask)[0])
+    return unique, counts

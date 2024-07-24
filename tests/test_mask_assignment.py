@@ -186,6 +186,20 @@ def test_likelihood_change_move_combination():
         )
 
 
+def test_unique_count():
+    arr = np.array([10, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 5, 5, 5, 10])
+    val, cnt = pa.unique_counts(arr)
+    v, c = np.unique(arr, return_counts=True)
+    assert np.array_equal(val, v), f"Value issue {val} != {v}"
+    assert np.array_equal(cnt, c), f"Count issue {cnt} != {c}"
+
+    arr = np.array([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    val, cnt = pa.unique_counts(arr)
+    v, c = np.unique(arr, return_counts=True)
+    assert np.array_equal(val, v), f"Value issue {val} != {v}"
+    assert np.array_equal(cnt, c), f"Count issue {cnt} != {c}"
+
+
 def test_assign_single_round():
     spot_positions = np.array(
         [
