@@ -258,7 +258,20 @@ def likelihood_change_move_combination(
     p,
     m,
 ):
-    """Likelihood change for a combination of spots to move to a new mask."""
+    """Likelihood change for a combination of spots to move to a new mask.
+
+    Args:
+        spot_ids (np.array): 1D array with the spot IDs.
+        target_masks (np.array): 1D array with the target mask IDs.
+        mask_assignments (np.array): 1D array with the current mask assignments.
+        mask_counts (np.array): 1D array with the current mask counts.
+        log_dist_likelihood (np.array): N spots x M masks array of distance likelihoods.
+        log_background_spot_prior (float): Log background spot prior.
+        p (float): Power of the spot count prior.
+        m (float): Length scale of the spot count prior.
+
+    Returns:
+        np.array: 1D array with the likelihood change for each target."""
     spot_ids = np.asarray(spot_ids)
     target_masks = np.asarray(target_masks)
     if np.any(target_masks < 0):
@@ -427,6 +440,7 @@ def _move_all_spots_to_background(
                     mask_assignment[
                         (mask_assignment == current_mask) & valid_spots
                     ] = -1
+
                     spots_moved += mask_counts[current_mask]
                     mask_counts[current_mask] = 0
     return mask_assignment, spots_moved
