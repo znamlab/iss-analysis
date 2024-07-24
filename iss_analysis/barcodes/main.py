@@ -173,7 +173,10 @@ def assign_barcode_all_chambers(
     background_spot_prior=0.0001,
     spot_distribution_sigma=50,
     max_iterations=100,
-    distance_threshold=600,
+    max_distance_to_mask=600,
+    inter_spot_distance_threshold=20,
+    max_spot_group_size=6,
+    max_total_combinations=10000,
     base_column="corrected_bases",
     verbose=True,
     conflicts="abort",
@@ -214,7 +217,10 @@ def assign_barcode_all_chambers(
         background_spot_prior=background_spot_prior,
         spot_distribution_sigma=spot_distribution_sigma,
         max_iterations=max_iterations,
-        distance_threshold=distance_threshold,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
         base_column=base_column,
     )
 
@@ -290,7 +296,10 @@ def run_mask_assignment(
     background_spot_prior,
     spot_distribution_sigma,
     max_iterations,
-    distance_threshold,
+    max_distance_to_mask,
+    inter_spot_distance_threshold,
+    max_spot_group_size,
+    max_total_combinations,
     base_column,
     verbose=True,
 ):
@@ -329,7 +338,7 @@ def run_mask_assignment(
     del bc
     gc.collect()
     _log("Assigning barcodes to masks", verbose)
-    mask_assignment_id = assign_barcodes_to_masks(
+    mask_assignment = assign_barcodes_to_masks(
         spots,
         mask_df,
         p=p,
@@ -337,16 +346,15 @@ def run_mask_assignment(
         background_spot_prior=background_spot_prior,
         spot_distribution_sigma=spot_distribution_sigma,
         max_iterations=max_iterations,
-        distance_threshold=distance_threshold,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
         verbose=verbose,
         base_column=base_column,
     )
     _log("Saving mask assignment", verbose)
-    # replace mask id with actual mask label
-    mask_assignment = np.array(mask_df.index[mask_assignment_id])
-    # -1 will match the last value, put it back to -1
-    mask_assignment[mask_assignment_id == -1] = -1
-    _log(f"Assigned {mask_assignment_id.size} spots to masks", verbose)
+    _log(f"Assigned {mask_assignment.size} spots to masks", verbose)
     output = pd.DataFrame(index=spots.index, columns=["mask", "chamber", "roi", "spot"])
     output.loc[spots.index, "spot"] = spots.index.values
     output.loc[spots.index, "mask"] = mask_assignment
