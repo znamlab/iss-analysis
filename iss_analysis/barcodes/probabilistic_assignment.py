@@ -1,5 +1,5 @@
 import numpy as np
-import itertools
+from tqdm import tqdm
 from numba import njit, prange
 
 
@@ -145,6 +145,113 @@ def assign_barcodes_to_masks(
                 mask_assignment, spots_in_range
             )
     return all_assignments, all_log_likelihoods
+
+
+def assign_single_barcode(
+    spot_positions,
+    mask_positions,
+    mask_assignments,
+    mask_counts,
+    max_distance_to_mask,
+    inter_spot_distance_threshold,
+    log_background_spot_prior,
+    p,
+    m,
+    spot_distribution_sigma,
+    max_spot_group_size=5,
+    verbose=True,
+):
+    """Assign a single barcode to masks.
+
+    Args:
+        spot_positions (np.array): Nx2 array of spot positions.
+        mask_positions (np.array): Mx2 array of mask positions.
+        mask_assignments (np.array): Nx1 array of initial mask assignments.
+        mask_counts (np.array): Mx1 array of mask counts.
+        max_distance_to_mask (float): Maximum distance between spots and masks.
+        inter_spot_distance_threshold (float): Maximum distance between spots.
+        log_background_spot_prior (float): Log background spot prior.
+        p (float): Power of the spot count prior.
+        m (float): Length scale of the spot count prior.
+        spot_distribution_sigma (float): Sigma of the spot distribution.
+        max_spot_group_size (int): Maximum number of spots in a group.
+        verbose (bool): Whether to print the progress.
+
+    Returns:
+        np.array: new mask assignments.
+        int: number of spots moved.
+    """
+    if verbose:
+        print(f"Assigning {len(spot_positions)} spots to {len(mask_positions)} masks")
+    combinations = valid_spot_combination(
+        spot_positions, inter_spot_distance_threshold, max_n=max_spot_group_size
+    )
+    if verbose:
+        print(f"Found {len(combinations)} valid spot combinations")
+    distances = np.linalg.norm(
+        spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
+    )
+    log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+
+    if len(combinations) == 0:
+        return None
+
+    # compute the likelihood of each combination
+    likelihood_changes, best_targets = np.zeros((2, len(combinations)), dtype=float)
+    for i_combi, combi in tqdm(enumerate(combinations), total=len(combinations)):
+        bg_likelihood = likelihood_change_background_combination(
+            combi,
+            mask_assignments,
+            mask_counts,
+            log_dist_likelihood,
+            log_background_spot_prior,
+            p,
+            m,
+        )
+
+        likelihood_changes[i_combi] = bg_likelihood
+        best_targets[i_combi] = -1
+        valid_targets = np.where(distances[combi].max(axis=0) < max_distance_to_mask)[0]
+        current_assignments = np.unique(mask_assignments[combi])
+        # don't move to a mask that is already assigned
+        valid_targets = np.setdiff1d(valid_targets, current_assignments)
+        move_likelihood = likelihood_change_move_combination(
+            combi,
+            target_masks=valid_targets,
+            mask_assignments=mask_assignments,
+            mask_counts=mask_counts,
+            log_dist_likelihood=log_dist_likelihood,
+            log_background_spot_prior=log_background_spot_prior,
+            p=p,
+            m=m,
+        )
+        # keep only the best move
+        if np.max(move_likelihood) > bg_likelihood:
+            likelihood_changes[i_combi] = np.max(move_likelihood)
+            best_targets[i_combi] = valid_targets[np.argmax(move_likelihood)]
+
+    # sort by likelihood change
+    order = np.argsort(likelihood_changes)[::-1]
+    mask_changed = set()
+    spot_moved = []
+    new_assignments = mask_assignments.copy()
+    for i_combi in order:
+        if likelihood_changes[i_combi] <= 0:
+            # we reached the point where we make things worse
+            break
+        target = best_targets[i_combi]
+        if target in mask_changed:
+            continue
+        source_masks = mask_assignments[combinations[i_combi]]
+        if any([m in mask_changed for m in source_masks]):
+            continue
+        new_assignments[combinations[i_combi]] = target
+        spot_moved.append(combinations[i_combi])
+        if target != -1:
+            mask_changed.add(target)
+        mask_changed.update(source_masks)
+
+    return new_assignments, spot_moved
 
 
 def valid_spot_combination(
