@@ -59,7 +59,7 @@ def assign_barcodes_to_masks(
     if verbose > 0:
         print(f"Found {len(barcodes)} barcodes")
 
-    assignments = pd.Series(index=spots.index, dtype=int)
+    assignments = pd.Series(index=spots.index, data=-2, dtype=int)
     for barcode in tqdm(barcodes, disable=verbose == 0):
         barcode_df = spots[spots[base_column].astype(str) == barcode]
         spot_positions = barcode_df[["x", "y"]].values
