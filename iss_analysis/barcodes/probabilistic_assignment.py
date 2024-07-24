@@ -3,6 +3,10 @@ from tqdm import tqdm
 import pandas as pd
 from numba import njit, prange
 
+# Sometimes the likelihoods are not exactly 0 but 10-15 or so, so we need to use a
+# small number to consider them zero
+EPSILON = 1e-6  # small number that is considered zero
+
 
 def assign_barcodes_to_masks(
     spots,
@@ -255,7 +259,7 @@ def assign_single_barcode_single_round(
     spot_moved = []
     new_assignments = mask_assignments.copy()
     for i_combi in order:
-        if likelihood_changes[i_combi] <= 0:
+        if likelihood_changes[i_combi] <= EPSILON:
             # we reached the point where we make things worse
             break
         target = best_targets[i_combi]
