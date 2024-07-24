@@ -9,22 +9,30 @@ def test_valid_spot_combination():
     distance_threshold = 10
     # set of spots too far from each other
     spot_positions = np.vstack([(0, 0), (100, 100), (200, 200)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
+    valid = pa.valid_spot_combinations(
+        spot_positions, distance_threshold, verbose=False
+    )
     assert len(valid) == len(spot_positions)
 
     # set of spots very close to each other
     spot_positions = np.vstack([(0, 0), (1, 1), (2, 2)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
+    valid = pa.valid_spot_combinations(
+        spot_positions, distance_threshold, verbose=False
+    )
     assert len(valid) == 7
 
     # set of spots very close to each other, with one far away
     spot_positions = np.vstack([(0, 0), (1, 1), (2, 2), (100, 100)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
+    valid = pa.valid_spot_combinations(
+        spot_positions, distance_threshold, verbose=False
+    )
     assert len(valid) == 8
 
     # spots close to each other by pairs but not triples
     spot_positions = np.vstack([(0, 0), (0, 7), (0, 14)])
-    valid = pa.valid_spot_combination(spot_positions, distance_threshold, verbose=False)
+    valid = pa.valid_spot_combinations(
+        spot_positions, distance_threshold, verbose=False
+    )
     assert len(valid) == 5
 
 
@@ -349,6 +357,10 @@ def test_assign_single_barcode_all_to_background():
             distances=None,
             log_dist_likelihood=None,
         )
+        if nspots == 0:
+            assert not len(spot_moved)
+            assert not len(new_ass)
+            continue
         # with default param we need 3 spots to be a cell
         expected = -1 if nspots < 3 else 0
         assert len(spot_moved) == (expected == -1)
