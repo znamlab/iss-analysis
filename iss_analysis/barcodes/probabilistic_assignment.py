@@ -1,7 +1,8 @@
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
-from numba import njit, prange
+from warnings import warn
+from numba import njit
 
 # Sometimes the likelihoods are not exactly 0 but 10-15 or so, so we need to use a
 # small number to consider them zero
@@ -51,7 +52,10 @@ def assign_barcodes_to_masks(
         np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
             array with the mask assignment for each iteration.
     """
-
+    if not spots.index.is_unique:
+        raise ValueError("Index of spots must be unique")
+    if not masks.index.is_unique:
+        raise ValueError("Index of masks must be unique")
     # get mask and spot positions
     mask_centers = masks[["x", "y"]].values
 
@@ -59,7 +63,7 @@ def assign_barcodes_to_masks(
     if verbose > 0:
         print(f"Found {len(barcodes)} barcodes")
 
-    assignments = pd.Series(index=spots.index, data=-2, dtype=int)
+    assignments_id = pd.Series(index=spots.index, data=-2, dtype=int)
     for barcode in tqdm(barcodes, disable=verbose == 0):
         barcode_df = spots[spots[base_column].astype(str) == barcode]
         spot_positions = barcode_df[["x", "y"]].values
@@ -78,8 +82,17 @@ def assign_barcodes_to_masks(
             max_spot_group_size=max_spot_group_size,
             max_total_combinations=max_total_combinations,
         )
-        assignments.loc[barcode_df.index] = mask_assignments
+        assignments_id.loc[barcode_df.index] = mask_assignments
 
+    # convert assignment index to actual mask value
+    assignments = pd.Series(
+        index=assignments_id.index, data=masks.index[assignments_id.values]
+    )
+    # put back the negative values
+    assignments[assignments_id == -1] = -1
+    if np.any(assignments_id == -2):
+        warn("Some spots were not assigned")
+        assignments[assignments_id == -2] = -2
     return assignments
 
 

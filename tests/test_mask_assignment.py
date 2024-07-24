@@ -1,8 +1,37 @@
 import pytest
 import numpy as np
+import pandas as pd
 from iss_analysis.barcodes import probabilistic_assignment as pa
 
 # Test the mask assignment functions
+
+
+def test_assign_barcodes_to_masks():
+    spots = pd.DataFrame(
+        index=[10, 11, 12], data=dict(x=[0, 0, 0], y=[0, 0, 0], bases=["A", "A", "A"])
+    )
+    masks = pd.DataFrame(index=[7, 10, 3], data=dict(x=[0, 10, 100], y=[0, 0, 0]))
+    params = dict(
+        p=0.9,
+        m=0.1,
+        background_spot_prior=0.0001,
+        spot_distribution_sigma=50,
+        max_iterations=100,
+        max_distance_to_mask=200,
+        inter_spot_distance_threshold=50,
+        max_spot_group_size=5,
+        max_total_combinations=1e6,
+        verbose=1,
+        base_column="bases",
+    )
+    assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
+    assert np.all(assignment == 7)
+    assert np.all(assignment.index == spots.index)
+    params["p"] = 0.8
+    params["m"] = 0.08
+    assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
+    assert np.all(assignment == -1)
+    assert np.all(assignment.index == spots.index)
 
 
 def test_valid_spot_combination():
@@ -412,6 +441,7 @@ def create_data():
 
 
 if __name__ == "__main__":
+    test_assign_barcodes_to_masks()
     test_assign_single_barcode_all_to_background()
     test_assign_single_round()
     test_likelihood_change_move_combination()
