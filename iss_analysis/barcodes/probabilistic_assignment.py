@@ -161,25 +161,46 @@ def valid_spot_combination(
         list of np.array: list of combinations of spots that are all within
             distance_threshold of each other
     """
-    all_groups = []
-    spot_distances = np.linalg.norm(
-        spot_positions[:, None, :] - spot_positions[None, :, :], axis=2
-    )
-    # we won't have combination longer than the number of spots
     max_n = min(max_n, len(spot_positions))
-    for n_in_group in range(1, max_n + 1):
-        spots = np.array(
-            list(itertools.combinations(np.arange(len(spot_positions)), n_in_group))
+    if max_n == 0:
+        return []
+    all_groups = [np.arange(len(spot_positions)).reshape(-1, 1)]
+    if max_n == 1:
+        return list(all_groups[0])
+
+    close_enough = (
+        np.linalg.norm(spot_positions[:, None, :] - spot_positions[None, :, :], axis=2)
+        < distance_threshold
+    )
+    # keep the upper triangle
+    close_enough = np.triu(close_enough, k=+1)
+    pairs = np.array([(a, b) for a, b in zip(*np.where(close_enough))])
+    all_groups.append(pairs)
+    if max_n == 2:
+        out = []
+        for gp in all_groups:
+            out.extend(gp)
+        return out
+
+    g0 = all_groups[0].reshape(-1)
+    for n_in_group in range(3, max_n + 1):
+        g1 = all_groups[-1]
+        print(f"The {len(g1)} combinations of {n_in_group-1} spots")
+
+        valid = np.ones((len(g1), len(g0)), dtype=bool)
+        for dim in range(g1.shape[1]):
+            valid &= close_enough[g1[:, dim], :]
+            valid &= g1[:, dim, None] != g0[None, :]
+
+        all_groups.append(
+            np.vstack([np.hstack([g1[i], g0[j]]) for i, j in zip(*np.where(valid))])
         )
-        dim_pairs = np.array(list(itertools.combinations(np.arange(n_in_group), 2)))
-        valid_spots = np.ones(len(spots), dtype=bool)
-        for dim_pair in dim_pairs:
-            valid_spots &= (
-                spot_distances[spots[:, dim_pair[0]], spots[:, dim_pair[1]]]
-                < distance_threshold
-            )
-        all_groups.extend(spots[valid_spots])
-    return all_groups
+        assert all_groups[-1].shape[1] == n_in_group
+
+    out = []
+    for gp in all_groups:
+        out.extend(gp)
+    return out
 
 
 def likelihood_change_background_combination(
