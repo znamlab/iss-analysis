@@ -164,16 +164,33 @@ def assign_single_barcode(
     log_background_spot_prior = np.log(background_spot_prior)
     if not len(spot_positions):
         raise ValueError("No spots to assign")
-    if mask_assignments is None:
-        distances = np.linalg.norm(
-            spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
-        )
-        mask_assignments = np.argmin(distances, axis=1)
 
     distances = np.linalg.norm(
         spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
     )
+    # no need to look at masks that are far from all spots
+    putative_targets = np.min(distances, axis=0) < max_distance_to_mask
+    if np.sum(putative_targets) == 0:
+        if verbose > 0:
+            print("No masks are close enough to the spots")
+        return np.full(len(spot_positions), -1)
+
+    distances = distances[:, putative_targets]
+    mask_positions = mask_positions[putative_targets]
     log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+    if mask_assignments is None:
+        mask_assignments = np.argmin(distances, axis=1)
+    else:
+        # need to adapt mask assignment to putative targets
+        assignment = mask_assignments.copy()
+        target_ids = np.where(putative_targets)[0]
+        nbg = assignment >= 0
+        assert np.all(
+            np.isin(assignment[nbg], target_ids)
+        ), "Some spots are assigned to unreachable targets"
+        assignment[nbg] = [
+            np.argwhere(target_ids == mask)[0][0] for mask in assignment[nbg]
+        ]
 
     combinations = valid_spot_combinations(
         spot_positions,
@@ -236,6 +253,12 @@ def assign_single_barcode(
             all_assignments.append(new_assignments.copy())
     if debug:
         return np.vstack(all_assignments)
+    # we looked only at subset of targets, so we need to put the results back
+    target_ids = np.where(putative_targets)[0]
+    assignments = new_assignments.copy()
+    nbg = assignments >= 0
+    assignments[nbg] = target_ids[new_assignments[nbg]]
+
     return new_assignments
 
 
@@ -288,7 +311,10 @@ def assign_single_barcode_single_round(
         list: list of combination of spots that were moved.
     """
     if verbose > 1:
-        print(f"Assigning {len(spot_positions)} spots to {len(mask_positions)} masks")
+        print(
+            f"Assigning {len(spot_positions)} spots to {len(mask_positions)} masks",
+            flush=True,
+        )
     mask_counts = np.bincount(
         mask_assignments[mask_assignments >= 0], minlength=len(mask_positions)
     )
