@@ -197,32 +197,45 @@ def assign_single_barcode(
         inter_spot_distance_threshold,
         max_n=max_spot_group_size,
         max_total_combinations=max_total_combinations,
-        verbose=verbose > 1,
+        verbose=verbose,
     )
+    if verbose > 1:
+        print(f"Found {len(combinations)} valid spot combinations")
+    n_per_combi = np.array([len(combi) for combi in combinations])
+    combi_size_borders = [0, *np.where(np.diff(n_per_combi))[0] + 1, len(n_per_combi)]
+    combi_sizes = np.sort(np.unique(n_per_combi))[::-1]
     new_assignments = mask_assignments.copy()
     if debug:
         all_assignments = [new_assignments.copy()]
+    verb_inside = verbose - 1 if verbose else 0
     for i in range(max_iterations):
         if verbose > 0:
             print(f"---- Iteration {i} ----")
-            # keep level 2 debuging onl for first iteration
-            verb_inside = 1 if i else verbose
-        else:
-            verb_inside = 0
-        new_assignments, spot_moved = assign_single_barcode_single_round(
-            spot_positions=spot_positions,
-            mask_positions=mask_positions,
-            mask_assignments=new_assignments,
-            max_distance_to_mask=max_distance_to_mask,
-            log_background_spot_prior=log_background_spot_prior,
-            p=p,
-            m=m,
-            spot_distribution_sigma=spot_distribution_sigma,
-            distances=distances,
-            log_dist_likelihood=log_dist_likelihood,
-            combinations=combinations,
-            verbose=verb_inside,
-        )
+        spot_moved = []
+        for c_size in combi_sizes:
+            if verbose > 1:
+                print(f"Combination size {c_size}")
+            c_combi = combinations[
+                combi_size_borders[c_size - 1] : combi_size_borders[c_size]
+            ]
+            move_this_size = [1]
+            while len(move_this_size) > 0:
+                new_assignments, move_this_size = assign_single_barcode_single_round(
+                    spot_positions=spot_positions,
+                    mask_positions=mask_positions,
+                    mask_assignments=new_assignments,
+                    max_distance_to_mask=max_distance_to_mask,
+                    log_background_spot_prior=log_background_spot_prior,
+                    p=p,
+                    m=m,
+                    spot_distribution_sigma=spot_distribution_sigma,
+                    distances=distances,
+                    log_dist_likelihood=log_dist_likelihood,
+                    combinations=c_combi,
+                    verbose=verb_inside,
+                )
+                if move_this_size:
+                    spot_moved.extend(move_this_size)
 
         if verbose > 0:
             nsp = np.sum([len(combi) for combi in spot_moved])
