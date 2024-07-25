@@ -614,10 +614,7 @@ def likelihood_change_move_combination(
         raise ValueError("Spot IDs must be unique")
 
     # New likelihood depends on the target mask
-    new_counts = np.repeat(mask_counts.copy(), len(target_masks)).reshape(
-        len(target_masks), len(mask_counts), order="F"
-    )
-    new_counts[np.arange(len(target_masks)), target_masks] += len(spot_ids)
+    new_counts = make_new_counts(target_masks, mask_counts, nspots=len(spot_ids))
     bg = mask_assignments[spot_ids] == -1
     changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][~bg])
     new_counts[:, changed_mask] -= changed_n
@@ -625,9 +622,7 @@ def likelihood_change_move_combination(
         new_counts[np.arange(len(target_masks)), target_masks], p, m
     )
     # if changed_mask is not target, we need to add to the new likelihood
-    masks2check = np.repeat(changed_mask, len(target_masks)).reshape(
-        len(target_masks), len(changed_mask), order="F"
-    )
+    masks2check = repeat_masks(target_masks, changed_mask)
     already_done = masks2check == target_masks[:, None]
     new_likelihood += _spot_count_prior(
         new_counts[:, changed_mask] * (~already_done), p, m
@@ -692,3 +687,20 @@ def meshgrid_ij(x, y):
     for j in range(len(y)):
         yy[:, j] = y[j]
     return xx, yy
+
+
+@njit
+def make_new_counts(target_masks, mask_counts, nspots):
+    new_counts = np.empty((len(target_masks), len(mask_counts)), dtype=np.int64)
+    for i, mask in enumerate(target_masks):
+        new_counts[i] = mask_counts.copy()
+        new_counts[i][mask] += nspots
+    return new_counts
+
+
+@njit
+def repeat_masks(target_masks, changed_mask):
+    masks2check = np.empty((len(target_masks), len(changed_mask)), dtype=np.int64)
+    for i, mask in enumerate(changed_mask):
+        masks2check[:, i] = mask
+    return masks2check
