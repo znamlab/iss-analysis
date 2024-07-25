@@ -48,7 +48,7 @@ def plot_bc_over_mask(
         alpha=mask_alpha,
     )
     # centroids = get_spot_part()
-    sp_col = mask_assignment % nc
+    sp_col = (mask_assignment % nc).astype(int)
     too_far = mask_assignment == -2
     background = mask_assignment == -1
     assigned = mask_assignment >= 0
@@ -80,6 +80,7 @@ def plot_bc_over_mask(
         alpha=alpha,
         marker="o",
     )
+
     ec = [colors[i] for i in bc_color[assigned] % nc]
     fc = [colors[i] for i in sp_col[assigned]]
     ax.scatter(
