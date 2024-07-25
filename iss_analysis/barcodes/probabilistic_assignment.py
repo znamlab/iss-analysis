@@ -1,6 +1,8 @@
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
+from functools import partial
+from multiprocessing import Pool
 from warnings import warn
 from numba import njit
 
@@ -23,6 +25,7 @@ def assign_barcodes_to_masks(
     max_total_combinations=1e6,
     verbose=1,
     base_column="bases",
+    n_workers=1,
 ):
     """Assign barcodes to masks using a probabilistic model.
 
@@ -47,6 +50,7 @@ def assign_barcodes_to_masks(
             Default is 1e6.
         verbose (int): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
+        n_workers (int): Number of workers to use. 1 = no parallel processing Default is 1.
 
     Returns:
         np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
@@ -62,27 +66,45 @@ def assign_barcodes_to_masks(
     barcodes = spots[base_column].unique().astype(str)
     if verbose > 0:
         print(f"Found {len(barcodes)} barcodes")
+    spot_positions_per_bc = [
+        spots.loc[spots[base_column].astype(str) == barcode, ["x", "y"]].values
+        for barcode in barcodes
+    ]
 
-    assignments_id = pd.Series(index=spots.index, data=-2, dtype=int)
-    for barcode in tqdm(barcodes, disable=verbose == 0):
-        barcode_df = spots[spots[base_column].astype(str) == barcode]
-        spot_positions = barcode_df[["x", "y"]].values
-        mask_assignments = assign_single_barcode(
-            spot_positions=spot_positions,
-            mask_positions=mask_centers,
-            max_distance_to_mask=max_distance_to_mask,
-            inter_spot_distance_threshold=inter_spot_distance_threshold,
-            background_spot_prior=background_spot_prior,
-            p=p,
-            m=m,
-            spot_distribution_sigma=spot_distribution_sigma,
-            max_iterations=max_iterations,
-            verbose=max(0, verbose - 1),
-            debug=False,
-            max_spot_group_size=max_spot_group_size,
-            max_total_combinations=max_total_combinations,
+    _assign_by_barcode = partial(
+        assign_single_barcode,
+        mask_positions=mask_centers,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        background_spot_prior=background_spot_prior,
+        p=p,
+        m=m,
+        spot_distribution_sigma=spot_distribution_sigma,
+        max_iterations=max_iterations,
+        verbose=max(0, verbose - 1),
+        debug=False,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
+    )
+
+    if n_workers > 1:
+        print(f"Starting parpool with {n_workers} workers", flush=True)
+        with Pool(n_workers) as pool:
+            assignment_by_bc = list(
+                tqdm(
+                    pool.imap(_assign_by_barcode, spot_positions_per_bc),
+                    total=len(barcodes),
+                )
+            )
+    else:
+        assignment_by_bc = list(
+            tqdm(map(_assign_by_barcode, spot_positions_per_bc), total=len(barcodes))
         )
-        assignments_id.loc[barcode_df.index] = mask_assignments
+    assignments_id = pd.Series(index=spots.index, data=-2, dtype=int)
+    for i_bar, barcode in enumerate(barcodes):
+        assignments_id.loc[
+            spots[base_column].astype(str) == barcode
+        ] = assignment_by_bc[i_bar]
 
     # convert assignment index to actual mask value
     assignments = pd.Series(

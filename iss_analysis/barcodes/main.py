@@ -181,6 +181,7 @@ def assign_barcode_all_chambers(
     verbose=True,
     conflicts="abort",
     use_slurm=True,
+    n_workers=1,
 ):
     """Assign barcodes to masks for all chambers.
 
@@ -203,6 +204,8 @@ def assign_barcode_all_chambers(
             conflicts. Defaults: "abort".
         use_slurm (bool, optional): Whether to use SLURM for job submission.
             Defaults: True.
+        n_workers (int, optional): The number of workers to use for parallel processing.
+            Defaults: 1.
 
     Returns:
         pandas.DataFrame: The assigned barcodes for all masks.
@@ -222,6 +225,8 @@ def assign_barcode_all_chambers(
         max_spot_group_size=max_spot_group_size,
         max_total_combinations=max_total_combinations,
         base_column=base_column,
+        verbose=verbose,
+        n_workers=n_workers,
     )
 
     # compile the list of chamber/rois to run
@@ -248,8 +253,14 @@ def assign_barcode_all_chambers(
                 flexilims_session=flm_sess,
                 base_name=f"barcodes_mask_assignment_roi{roi}",
                 conflicts=conflicts,
-                extra_attributes=attributes,
-                ignore_attributes=["started", "ended", "job_id"],
+                extra_attributes=attributes.copy(),
+                ignore_attributes=[
+                    "started",
+                    "ended",
+                    "job_id",
+                    "verbose",
+                    "n_workers",
+                ],
                 verbose=verbose,
             )
             reload = True
@@ -270,6 +281,12 @@ def assign_barcode_all_chambers(
             out_ds.path = out_ds.path.with_suffix(".pkl")
             out_ds.extra_attributes["started"] = str(pd.Timestamp.now())
             out_ds.update_flexilims(mode="overwrite")
+            if "started" in attributes:
+                start_time = attributes.pop("started")
+            start_time = out_ds.extra_attributes["started"]
+
+            if verbose:
+                print(f"Started job for {chamber}/{roi} at {start_time}")
             job_id = run_mask_assignment(
                 project=project,
                 mouse_name=mouse_name,
@@ -283,7 +300,11 @@ def assign_barcode_all_chambers(
     return output
 
 
-@slurm_it(conda_env="iss-preprocess", print_job_id=True, slurm_options={"mem": "128GB"})
+@slurm_it(
+    conda_env="iss-preprocess",
+    print_job_id=True,
+    slurm_options={"mem": "64GB", "time": "48:00:00"},
+)
 def run_mask_assignment(
     project,
     mouse_name,
@@ -302,6 +323,7 @@ def run_mask_assignment(
     max_total_combinations,
     base_column,
     verbose=True,
+    n_workers=1,
 ):
     _log(
         f"Assigning barcodes to masks for {project}/{mouse_name}/{chamber}/{roi}",
@@ -352,6 +374,7 @@ def run_mask_assignment(
         max_total_combinations=max_total_combinations,
         verbose=verbose,
         base_column=base_column,
+        n_workers=n_workers,
     )
     _log("Saving mask assignment", verbose)
     _log(f"Assigned {mask_assignment.size} spots to masks", verbose)
