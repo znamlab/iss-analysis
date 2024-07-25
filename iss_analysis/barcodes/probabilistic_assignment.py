@@ -344,8 +344,7 @@ def assign_single_barcode_single_round(
             max_total_combinations=max_total_combinations,
             verbose=verbose > 1,
         )
-    if verbose > 1:
-        print(f"Found {len(combinations)} valid spot combinations")
+
     if distances is None:
         distances = np.linalg.norm(
             spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
@@ -358,46 +357,28 @@ def assign_single_barcode_single_round(
 
     # compute the likelihood of each combination
     likelihood_changes, best_targets = np.zeros((2, len(combinations)), dtype=float)
-    for i_combi, combi in tqdm(
-        enumerate(combinations), total=len(combinations), disable=verbose == 0
+    for i_comb, combi in tqdm(
+        enumerate(combinations), total=len(combinations), disable=verbose < 2
     ):
-        bg_likelihood = likelihood_change_background_combination(
+        (
+            likelihood_changes[i_comb],
+            best_targets[i_comb],
+        ) = likelihood_change_single_combi(
             combi,
             mask_assignments,
             mask_counts,
+            distances,
             log_dist_likelihood,
             log_background_spot_prior,
             p,
             m,
+            max_distance_to_mask,
         )
-
-        likelihood_changes[i_combi] = bg_likelihood
-        best_targets[i_combi] = -1
-        valid_targets = np.where(distances[combi].max(axis=0) < max_distance_to_mask)[0]
-        current_assignments = np.unique(mask_assignments[combi])
-        # don't move to a mask that is already assigned
-        valid_targets = np.setdiff1d(valid_targets, current_assignments)
-        if len(valid_targets) == 0:
-            move_likelihood = -np.inf
-        else:
-            move_likelihood = likelihood_change_move_combination(
-                combi,
-                target_masks=valid_targets,
-                mask_assignments=mask_assignments,
-                mask_counts=mask_counts,
-                log_dist_likelihood=log_dist_likelihood,
-                log_background_spot_prior=log_background_spot_prior,
-                p=p,
-                m=m,
-            )
-        # keep only the best move
-        if np.max(move_likelihood) > bg_likelihood:
-            likelihood_changes[i_combi] = np.max(move_likelihood)
-            best_targets[i_combi] = valid_targets[np.argmax(move_likelihood)]
 
     # sort by likelihood change
     order = np.argsort(likelihood_changes)[::-1]
     mask_changed = set()
+    mask_targeted = set()
     spot_moved = []
     new_assignments = mask_assignments.copy()
     for i_combi in order:
@@ -405,19 +386,68 @@ def assign_single_barcode_single_round(
             # we reached the point where we make things worse
             break
         target = best_targets[i_combi]
+        # we should not add spots to a mask where we removed some
         if target in mask_changed:
             continue
         spot_combi = combinations[i_combi]
         source_masks = mask_assignments[spot_combi]
-        if any([m in mask_changed for m in source_masks]):
+        # we should not take spots from a mask where we added some
+        if any([m in mask_targeted for m in source_masks]):
             continue
         new_assignments[spot_combi] = target
         spot_moved.append(spot_combi)
         if target != -1:
-            mask_changed.add(target)
+            mask_targeted.add(target)
         mask_changed.update(source_masks[source_masks != -1])
 
     return new_assignments, spot_moved
+
+
+def likelihood_change_single_combi(
+    combi,
+    mask_assignments,
+    mask_counts,
+    distances,
+    log_dist_likelihood,
+    log_background_spot_prior,
+    p,
+    m,
+    max_distance_to_mask,
+):
+    bg_likelihood = likelihood_change_background_combination(
+        combi,
+        mask_assignments,
+        mask_counts,
+        log_dist_likelihood,
+        log_background_spot_prior,
+        p,
+        m,
+    )
+
+    likelihood_change = bg_likelihood
+    best_target = -1
+    valid_targets = np.where(distances[combi].max(axis=0) < max_distance_to_mask)[0]
+    current_assignments = np.unique(mask_assignments[combi])
+    # don't move to a mask that is already assigned
+    valid_targets = np.setdiff1d(valid_targets, current_assignments)
+    if len(valid_targets) == 0:
+        move_likelihood = -np.inf
+    else:
+        move_likelihood = likelihood_change_move_combination(
+            combi,
+            target_masks=valid_targets,
+            mask_assignments=mask_assignments,
+            mask_counts=mask_counts,
+            log_dist_likelihood=log_dist_likelihood,
+            log_background_spot_prior=log_background_spot_prior,
+            p=p,
+            m=m,
+        )
+    # keep only the best move
+    if np.max(move_likelihood) > bg_likelihood:
+        likelihood_change = np.max(move_likelihood)
+        best_target = valid_targets[np.argmax(move_likelihood)]
+    return likelihood_change, best_target
 
 
 def assign_single_barcode_all_to_background(
