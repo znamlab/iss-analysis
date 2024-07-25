@@ -582,6 +582,50 @@ def likelihood_change_background_combination(
     return new_likelihood - old_likelihood
 
 
+@njit
+def numba_likelihood_change_background_combination(
+    spot_ids,
+    mask_assignments,
+    mask_counts,
+    log_dist_likelihood,
+    log_background_spot_prior,
+    p,
+    m,
+):
+    """Likelihood change for a combination of spots to all become background spots.
+
+    Args:
+        spot_ids (np.array): 1D array with the spot IDs.
+        mask_assignments (np.array): 1D array with the current mask assignments.
+        mask_counts (np.array): 1D array with the current mask counts.
+        log_dist_likelihood (np.array): N spots x M masks array of distance likelihoods.
+        log_background_spot_prior (float): Log background spot prior.
+        p (float): Power of the spot count prior.
+        m (float): Length scale of the spot count prior.
+
+    Returns:
+        float: Likelihood change for this spot combination to become a background spots.
+    """
+    # new likelihood is new spot to the background
+    new_likelihood = log_background_spot_prior * len(spot_ids)
+    # and new spot count prior for spots that were assigned
+    was_assigned = mask_assignments[spot_ids] != -1
+    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][was_assigned])
+    new_counts = mask_counts.copy()
+    new_counts[changed_mask] -= changed_n
+    new_likelihood += _spot_count_prior(new_counts[changed_mask], p, m).sum()
+
+    # old likelihood is old spot to the background * log_bg
+    old_likelihood = log_background_spot_prior * (~was_assigned).sum()
+    # + old spot count prior for spots that were assigned
+    old_likelihood += _spot_count_prior(mask_counts[changed_mask], p, m).sum()
+    # + old distance likelihood for spots that were assigned
+    old_likelihood += log_dist_likelihood[
+        spot_ids[was_assigned], mask_assignments[spot_ids][was_assigned]
+    ].sum()
+    return new_likelihood - old_likelihood
+
+
 def likelihood_change_move_combination(
     spot_ids,
     target_masks,
