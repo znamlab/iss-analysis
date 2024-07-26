@@ -34,29 +34,30 @@ def test_assign_barcodes_to_masks():
     assert np.all(assignment.index == spots.index)
 
     # check that assignment works with and without parallel
+    # slightly more complex case, 10 masks, with 1 to 10 spots
+    masks = pd.DataFrame(
+        index=np.arange(20) * 70 + 1,
+        data=dict(x=np.arange(1, 21) * 1000, y=np.arange(1, 21) * 1000),
+    )
+    nspots = np.arange(1, 11).sum()
+    pos = np.vstack([[n + 10, n + 10] for n in np.arange(1, 11) for i in range(n)])
+    spots = pd.DataFrame(
+        index=np.arange(nspots) * 5 + 10,
+        data=dict(x=pos[:, 0] * 1000, y=pos[:, 1] * 1000, bases=["A"] * nspots),
+    )
+    expected = []
+    # the blob with less than 5 spots should be background
+    for i in range(5):
+        expected.extend([-1] * i)
+    # the rest should be assigned to the closest mask
+    for i in range(5, 11):
+        expected.extend([(i + 9) * 70 + 1] * (i))
+
     for nw in [1, 5]:
         params["n_workers"] = nw
-        # slightly more complex case, 10 masks, with 1 to 10 spots
-        masks = pd.DataFrame(
-            index=np.arange(10) * 70 + 1,
-            data=dict(x=np.arange(1, 11) * 1000, y=np.arange(1, 11) * 1000),
-        )
-        nspots = np.arange(1, 11).sum()
-        pos = np.vstack([[n, n] for n in np.arange(1, 11) for i in range(n)])
-        spots = pd.DataFrame(
-            index=np.arange(nspots) * 5 + 10,
-            data=dict(x=pos[:, 0] * 1000, y=pos[:, 1] * 1000, bases=["A"] * nspots),
-        )
         assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
-        expected = []
-        # the blob with less than 5 spots should be background
-        for i in range(5):
-            expected.extend([-1] * i)
-        # the rest should be assigned to the closest mask
-        for i in range(5, 11):
-            expected.extend([(i - 1) * 70 + 1] * (i))
-        assert np.all(assignment == expected)
         assert np.all(assignment.index == spots.index)
+        assert np.all(assignment == expected)
 
 
 def test_valid_spot_combination():
