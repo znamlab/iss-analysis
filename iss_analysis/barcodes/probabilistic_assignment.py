@@ -132,6 +132,7 @@ def assign_single_barcode(
     verbose=2,
     mask_assignments=None,
     max_iterations=100,
+    run_by_groupsize=False,
     debug=False,
 ):
     """Assign a single barcode to masks.
@@ -155,6 +156,10 @@ def assign_single_barcode(
             number. Default 2.
         mask_assignments (np.array): Nx1 array of initial mask assignments. Default None.
         max_iterations (int): Maximum number of iterations. Default 100.
+        run_by_groupsize (bool): Whether to run the assignment by group size. This will
+            first iteraton on combination of `max_total_combinations` spots only, then
+            `max_total_combinations - 1` spots etc... Faster but might not be optimal.
+            Default False.
         debug (bool): Whether to return debug information. Default False.
 
     Returns:
@@ -204,6 +209,13 @@ def assign_single_barcode(
     n_per_combi = np.array([len(combi) for combi in combinations])
     combi_size_borders = [0, *np.where(np.diff(n_per_combi))[0] + 1, len(n_per_combi)]
     combi_sizes = np.sort(np.unique(n_per_combi))[::-1]
+    if run_by_groupsize:
+        combi_by_size = [
+            combinations[combi_size_borders[c_size - 1] : combi_size_borders[c_size]]
+            for c_size in combi_sizes
+        ]
+    else:
+        combi_by_size = [combinations]
     new_assignments = mask_assignments.copy()
     if debug:
         all_assignments = [new_assignments.copy()]
@@ -212,12 +224,9 @@ def assign_single_barcode(
         if verbose > 0:
             print(f"---- Iteration {i} ----")
         spot_moved = []
-        for c_size in combi_sizes:
-            if verbose > 1:
+        for c_size, c_combi in enumerate(combi_by_size):
+            if run_by_groupsize and (verbose > 1):
                 print(f"Combination size {c_size}")
-            c_combi = combinations[
-                combi_size_borders[c_size - 1] : combi_size_borders[c_size]
-            ]
             move_this_size = [1]
             while len(move_this_size) > 0:
                 new_assignments, move_this_size = assign_single_barcode_single_round(
@@ -535,6 +544,8 @@ def valid_spot_combinations(
     all_groups = [np.arange(len(spot_positions)).reshape(-1, 1)]
     npos = len(spot_positions)
     if (max_n == 1) or (npos < 2) or (npos >= max_total_combinations):
+        if npos >= max_total_combinations:
+            print("!!! Too many spots, runing only spot by spot !!!")
         return list(all_groups[0])
 
     close_enough = (
@@ -550,6 +561,8 @@ def valid_spot_combinations(
         out = []
         for gp in all_groups:
             out.extend(gp)
+        if npos >= max_total_combinations:
+            print("!!! Too many combination, runing by pairs !!!")
         return out
 
     g0 = all_groups[0].reshape(-1)
@@ -570,6 +583,8 @@ def valid_spot_combinations(
         )
         ntot += len(all_groups[-1])
         if ntot >= max_total_combinations:
+            if (npos >= max_total_combinations) and (n_in_group < max_n):
+                print(f"!!! Too many combination, max group size: {n_in_group} !!!")
             if verbose:
                 print(f"Stopped at {ntot} combinations")
             break
