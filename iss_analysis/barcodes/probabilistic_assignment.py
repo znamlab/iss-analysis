@@ -271,8 +271,7 @@ def assign_single_barcode(
     assignments = new_assignments.copy()
     nbg = assignments >= 0
     assignments[nbg] = target_ids[new_assignments[nbg]]
-
-    return new_assignments
+    return assignments
 
 
 def assign_single_barcode_single_round(
@@ -325,7 +324,7 @@ def assign_single_barcode_single_round(
     """
     if verbose > 1:
         print(
-            f"Assigning {len(spot_positions)} spots to {len(mask_positions)} masks",
+            f"\nAssigning {len(spot_positions)} spots to {len(mask_positions)} masks",
             flush=True,
         )
     mask_counts = np.bincount(
