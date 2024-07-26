@@ -35,6 +35,8 @@ def plot_bc_over_mask(
     nc=20,
     show_bg_barcodes=False,
     mask_alpha=0.5,
+    mask_centers=None,
+    line2mask=None,
 ):
     # get the list of colors from tab20
     colors = matplotlib.cm.get_cmap("tab20", nc).colors
@@ -92,4 +94,28 @@ def plot_bc_over_mask(
         alpha=1,
         marker="o",
     )
+    if line2mask is not None:
+        assert mask_centers is not None
+        ax.scatter(
+            mask_centers.x - xlim[0],
+            mask_centers.y - ylim[0],
+            color="k",
+            marker="+",
+            alpha=0.3,
+            zorder=-50,
+        )
+        for i, (sp_id, series) in enumerate(bc.iterrows()):
+            target = mask_assignment[i]
+            if target < 0:
+                continue
+
+            target = mask_centers.loc[target]
+            ax.plot(
+                [series.x - xlim[0], target.x - xlim[0]],
+                [series.y - ylim[0], target.y - ylim[0]],
+                color="k",
+                alpha=0.5,
+                linewidth=0.2,
+                zorder=-70,
+            )
     ax.axis("off")
