@@ -11,14 +11,30 @@ def get_stack_part(stack, xlim, ylim):
     return stack[ylim[0] : ylim[1], xlim[0] : xlim[1]]
 
 
-def get_spot_part(df, xlim, ylim, return_mask=False):
+def get_spot_part(df, xlim, ylim, return_mask=False, xcol="x", ycol="y"):
+    """Get the part of the dataframe that is within the xlim and ylim
+
+    Args:
+        df (pd.DataFrame): the dataframe with the x and y columns
+        xlim (list): the x limits
+        ylim (list): the y limits
+        return_mask (bool, optional): if True, return the mask that was used to filter
+            the dataframe
+        xcol (str, optional): Name of the x column. Defaults to 'x'.
+        ycol (str, optional): Name of the y column. Defaults to 'y'.
+
+    Returns:
+        pd.DataFrame: the filtered dataframe
+        np.array: the mask that was used to filter the dataframe, only if return_mask is
+            True
+    """
     ylim = sorted(ylim)
     xlim = sorted(xlim)
     mask = (
-        (df["x"] >= xlim[0])
-        & (df["x"] < xlim[1])
-        & (df["y"] >= ylim[0])
-        & (df["y"] < ylim[1])
+        (df[xcol] >= xlim[0])
+        & (df[xcol] < xlim[1])
+        & (df[ycol] >= ylim[0])
+        & (df[ycol] < ylim[1])
     )
     if return_mask:
         return df[mask], mask
