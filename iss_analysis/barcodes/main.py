@@ -173,11 +173,16 @@ def assign_barcode_all_chambers(
     background_spot_prior=0.0001,
     spot_distribution_sigma=50,
     max_iterations=100,
-    distance_threshold=600,
+    max_distance_to_mask=600,
+    inter_spot_distance_threshold=20,
+    max_spot_group_size=6,
+    max_total_combinations=10000,
     base_column="corrected_bases",
     verbose=True,
     conflicts="abort",
     use_slurm=True,
+    n_workers=1,
+    run_by_groupsize=True,
 ):
     """Assign barcodes to masks for all chambers.
 
@@ -200,6 +205,10 @@ def assign_barcode_all_chambers(
             conflicts. Defaults: "abort".
         use_slurm (bool, optional): Whether to use SLURM for job submission.
             Defaults: True.
+        n_workers (int, optional): The number of workers to use for parallel processing.
+            Defaults: 1.
+        run_by_groupsize (bool, optional): Whether to run the assignment by group size.
+            Defaults: True.
 
     Returns:
         pandas.DataFrame: The assigned barcodes for all masks.
@@ -214,8 +223,14 @@ def assign_barcode_all_chambers(
         background_spot_prior=background_spot_prior,
         spot_distribution_sigma=spot_distribution_sigma,
         max_iterations=max_iterations,
-        distance_threshold=distance_threshold,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
         base_column=base_column,
+        verbose=verbose,
+        n_workers=n_workers,
+        run_by_groupsize=run_by_groupsize,
     )
 
     # compile the list of chamber/rois to run
@@ -242,8 +257,14 @@ def assign_barcode_all_chambers(
                 flexilims_session=flm_sess,
                 base_name=f"barcodes_mask_assignment_roi{roi}",
                 conflicts=conflicts,
-                extra_attributes=attributes,
-                ignore_attributes=["started", "ended", "job_id"],
+                extra_attributes=attributes.copy(),
+                ignore_attributes=[
+                    "started",
+                    "ended",
+                    "job_id",
+                    "verbose",
+                    "n_workers",
+                ],
                 verbose=verbose,
             )
             reload = True
@@ -264,6 +285,12 @@ def assign_barcode_all_chambers(
             out_ds.path = out_ds.path.with_suffix(".pkl")
             out_ds.extra_attributes["started"] = str(pd.Timestamp.now())
             out_ds.update_flexilims(mode="overwrite")
+            if "started" in attributes:
+                start_time = attributes.pop("started")
+            start_time = out_ds.extra_attributes["started"]
+
+            if verbose:
+                print(f"Started job for {chamber}/{roi} at {start_time}")
             job_id = run_mask_assignment(
                 project=project,
                 mouse_name=mouse_name,
@@ -277,7 +304,11 @@ def assign_barcode_all_chambers(
     return output
 
 
-@slurm_it(conda_env="iss-preprocess", print_job_id=True, slurm_options={"mem": "128GB"})
+@slurm_it(
+    conda_env="iss-preprocess",
+    print_job_id=True,
+    slurm_options={"mem": "64GB", "time": "48:00:00"},
+)
 def run_mask_assignment(
     project,
     mouse_name,
@@ -290,9 +321,14 @@ def run_mask_assignment(
     background_spot_prior,
     spot_distribution_sigma,
     max_iterations,
-    distance_threshold,
+    max_distance_to_mask,
+    inter_spot_distance_threshold,
+    max_spot_group_size,
+    max_total_combinations,
     base_column,
     verbose=True,
+    n_workers=1,
+    run_by_groupsize=True,
 ):
     _log(
         f"Assigning barcodes to masks for {project}/{mouse_name}/{chamber}/{roi}",
@@ -306,7 +342,7 @@ def run_mask_assignment(
         flexilims_session=flm_sess, name=assigned_datasets_name
     )
     _log(f"Error corrected barcodes from {error_dataset.path_full}", verbose)
-    _log(f"Flexilims dataset {assigned_dataset.full_name} with attributes:", verbose)
+    _log(f"Flexilims dataset {assigned_dataset.full_name} with attributes:\n", verbose)
     _log(
         "\n".join(f"{k}: {v}" for k, v in assigned_dataset.extra_attributes.items()),
         verbose,
@@ -329,7 +365,7 @@ def run_mask_assignment(
     del bc
     gc.collect()
     _log("Assigning barcodes to masks", verbose)
-    mask_assignment_id = assign_barcodes_to_masks(
+    mask_assignment = assign_barcodes_to_masks(
         spots,
         mask_df,
         p=p,
@@ -337,16 +373,17 @@ def run_mask_assignment(
         background_spot_prior=background_spot_prior,
         spot_distribution_sigma=spot_distribution_sigma,
         max_iterations=max_iterations,
-        distance_threshold=distance_threshold,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
         verbose=verbose,
         base_column=base_column,
+        n_workers=n_workers,
+        run_by_groupsize=run_by_groupsize,
     )
     _log("Saving mask assignment", verbose)
-    # replace mask id with actual mask label
-    mask_assignment = np.array(mask_df.index[mask_assignment_id])
-    # -1 will match the last value, put it back to -1
-    mask_assignment[mask_assignment_id == -1] = -1
-    _log(f"Assigned {mask_assignment_id.size} spots to masks", verbose)
+    _log(f"Assigned {mask_assignment.size} spots to masks", verbose)
     output = pd.DataFrame(index=spots.index, columns=["mask", "chamber", "roi", "spot"])
     output.loc[spots.index, "spot"] = spots.index.values
     output.loc[spots.index, "mask"] = mask_assignment
