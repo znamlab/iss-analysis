@@ -224,9 +224,12 @@ def match_starter_to_barcodes(
             if verbose:
                 print(f"Loading {fname}")
             rab_this_roi = pd.read_pickle(fname)
-            rabies_cell_properties.loc[rab_this_roi.index, "starter"] = rab_this_roi[
-                "starter"
-            ]
+            try:
+                rabies_cell_properties.loc[
+                    rab_this_roi.index, "starter"
+                ] = rab_this_roi["starter"]
+            except KeyError:
+                raise ValueError("Mask IDs have changed. Use `redo` to update matching")
             rabies_cell_properties.loc[rab_this_roi.index, "starter_id"] = rab_this_roi[
                 "starter_id"
             ]
