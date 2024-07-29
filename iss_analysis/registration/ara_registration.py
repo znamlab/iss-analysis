@@ -28,13 +28,14 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
     if ref_chamber is None:
         if ref_roi is not None:
             raise ValueError("If ref_roi is not None, ref_chamber must be provided")
-        chamber_rois = spot_df["chamber", "roi"].unique()
+        chamber_rois = spot_df.groupby(["chamber", "roi"]).groups.keys()
     else:
         chamber_rois = [(ref_chamber, ref_roi)]
     all_planes = []
     for chamber, roi in chamber_rois:
         spots = spot_df.query(f"chamber == '{chamber}' and roi == {roi}")
         ara_coords = spots[[f"ara_{i}" for i in "xyz"]].values
+        ara_coords = ara_coords[~np.any(np.isnan(ara_coords), axis=1)]
         plane_coeffs = utils.fit_plane_to_points(ara_coords)
         all_planes.append(plane_coeffs)
     all_planes = np.array(all_planes)
@@ -42,10 +43,18 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
 
     # plane normal:
     n = -median_plane[:3] / np.linalg.norm(median_plane[:3])
-    # dim 2 remains the same
-    v = np.array([0, 1, 0])
+
+    # find a vector that is in the plane and pointing dorsaly
+    # up is [0,1,0], the plane equation is ax+by+cz=0, so if we set x=0, we get
+    # by+cz=0, so y=1 and z=-b/c
+    v = np.array([0, 1, -plane_coeffs[2] / plane_coeffs[1]])
+    v /= np.linalg.norm(v)
     # dim 1 is orthogonal to the plane normal and u
     u = np.cross(n, v)
+    u /= np.linalg.norm(u)
+    if abs(plane_coeffs[2]) > abs(plane_coeffs[1]):
+        # if the plane is more vertical than horizontal, swap u and v
+        u, v = v, u
     new_base = np.c_[n, v, u]
     return new_base
 
@@ -70,6 +79,7 @@ def rotate_ara_coordinate_to_slice(
             plane of all rois in the DataFrame. Defaults to None.
 
     Returns:
+        pd.DataFrame: DataFrame with the rotated ARA coordinates (ara_`axis`_rot)
     """
     if transform is None:
         transform = get_ara_to_slice_rotation_matrix(
