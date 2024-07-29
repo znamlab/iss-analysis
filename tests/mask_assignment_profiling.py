@@ -4,8 +4,8 @@ import numpy as np
 
 # generate some data
 rng = np.random.default_rng(42)
-nbarcodes = 5
-nmasks = 100
+nbarcodes = 100
+nmasks = 5000
 mask_positions = rng.uniform(0, nmasks, (nmasks, 2))
 print(f"Generating data for {nbarcodes} barcodes", flush=True)
 all_positions = []
@@ -80,10 +80,11 @@ assign_barcodes_to_masks(
     max_distance_to_mask=500,
     inter_spot_distance_threshold=50,
     max_spot_group_size=5,
-    max_total_combinations=10000,
+    max_total_combinations=1e6,
     verbose=1,
     base_column="bases",
-    n_workers=1,
+    n_workers=10,
+    run_by_groupsize=False,
 )
 
 # %%
