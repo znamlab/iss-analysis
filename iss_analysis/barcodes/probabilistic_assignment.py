@@ -26,6 +26,7 @@ def assign_barcodes_to_masks(
     verbose=1,
     base_column="bases",
     n_workers=1,
+    run_by_groupsize=False,
 ):
     """Assign barcodes to masks using a probabilistic model.
 
@@ -36,7 +37,7 @@ def assign_barcodes_to_masks(
             columns 'x' and 'y'.
         p (float): Power of the spot count prior. Default is 0.9.
         m (float): Length scale of the spot count prior. Default is 0.1.
-        background_spot_prior (float): Prior for the background spots. Default is 0.0001.
+        background_spot_prior (float): Prior for the background spots. Default is 0.0001
         spot_distribution_sigma (float): Sigma for the spot distribution. Default is 20.
         max_iterations (int): Maximum number of iterations. Default is 100.
         max_distance_to_mask (float): Threshold for the distance in pixels between spots
@@ -50,7 +51,12 @@ def assign_barcodes_to_masks(
             Default is 1e6.
         verbose (int): Whether to print the progress. Default is False.
         base_column (str): Name of the column with the bases. Default is 'bases'.
-        n_workers (int): Number of workers to use. 1 = no parallel processing Default is 1.
+        n_workers (int): Number of workers to use. 1 = no parallel processing Default is
+            1.
+        run_by_groupsize (bool): Whether to run the assignment by group size. This will
+            first iteraton on combination of `max_total_combinations` spots only, then
+            `max_total_combinations - 1` spots etc... Faster but might not be optimal.
+            Default False.
 
     Returns:
         np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
@@ -85,6 +91,7 @@ def assign_barcodes_to_masks(
         debug=False,
         max_spot_group_size=max_spot_group_size,
         max_total_combinations=max_total_combinations,
+        run_by_groupsize=run_by_groupsize,
     )
 
     if n_workers > 1:

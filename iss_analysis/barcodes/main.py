@@ -182,6 +182,7 @@ def assign_barcode_all_chambers(
     conflicts="abort",
     use_slurm=True,
     n_workers=1,
+    run_by_groupsize=True,
 ):
     """Assign barcodes to masks for all chambers.
 
@@ -206,6 +207,8 @@ def assign_barcode_all_chambers(
             Defaults: True.
         n_workers (int, optional): The number of workers to use for parallel processing.
             Defaults: 1.
+        run_by_groupsize (bool, optional): Whether to run the assignment by group size.
+            Defaults: True.
 
     Returns:
         pandas.DataFrame: The assigned barcodes for all masks.
@@ -227,6 +230,7 @@ def assign_barcode_all_chambers(
         base_column=base_column,
         verbose=verbose,
         n_workers=n_workers,
+        run_by_groupsize=run_by_groupsize,
     )
 
     # compile the list of chamber/rois to run
@@ -324,6 +328,7 @@ def run_mask_assignment(
     base_column,
     verbose=True,
     n_workers=1,
+    run_by_groupsize=True,
 ):
     _log(
         f"Assigning barcodes to masks for {project}/{mouse_name}/{chamber}/{roi}",
@@ -375,6 +380,7 @@ def run_mask_assignment(
         verbose=verbose,
         base_column=base_column,
         n_workers=n_workers,
+        run_by_groupsize=run_by_groupsize,
     )
     _log("Saving mask assignment", verbose)
     _log(f"Assigned {mask_assignment.size} spots to masks", verbose)
