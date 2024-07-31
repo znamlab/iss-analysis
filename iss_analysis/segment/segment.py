@@ -189,10 +189,11 @@ def match_starter_to_barcodes(
     mouse,
     rabies_cell_properties,
     rab_spot_df,
-    starters=None,
+    mcherry_cells=None,
     redo=False,
     verbose=True,
-    max_starter_distance=100,
+    max_starter_distance=10,
+    min_spot_number=5,
 ):
     """Match starter cells to rabies cells.
 
@@ -204,157 +205,164 @@ def match_starter_to_barcodes(
         starters (pd.DataFrame, optional): The starter cells. Defaults to None.
         redo (bool, optional): Redo the matching. Defaults to False.
         verbose (bool, optional): Print progress. Defaults to True.
-        max_starter_distance (int, optional): The maximum distance to consider a cell as a starter cell. Defaults to 100.
+        max_starter_distance (int, optional): The radius around starter cell to look for
+            spots, in um. Defaults to 10.
+        min_spot_number (int, optional): The minimum number of spots in this radius
+            required to consider a cell to be starter cell. Defaults to 5.
 
     Returns:
         pd.DataFrame: The rabies cell properties with starter IDs.
     """
     manual_click = (
-        issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "starter_cells"
+        issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "mcherry_cells"
     )
-    if starters is None:
-        starters = issa.io.get_starter_cells(project, mouse)
+    if mcherry_cells is None:
+        mcherry_cells = issa.io.get_mcherry_cells(project, mouse, verbose=verbose)
 
-    rabies_cell_properties["starter"] = False
-    rabies_cell_properties["starter_id"] = "none"
-    rabies_cell_properties["distance"] = np.nan
-    for (ch, roi), starter_df in starters.groupby(["chamber", "roi"]):
-        fname = manual_click / f"rabies_cells_{mouse}_{ch}_roi_{roi}.pkl"
-        if (not redo) and fname.exists():
-            if verbose:
-                print(f"Loading {fname}")
-            rab_this_roi = pd.read_pickle(fname)
-            try:
-                rabies_cell_properties.loc[
-                    rab_this_roi.index, "starter"
-                ] = rab_this_roi["starter"]
-            except KeyError:
-                raise ValueError("Mask IDs have changed. Use `redo` to update matching")
-            rabies_cell_properties.loc[rab_this_roi.index, "starter_id"] = rab_this_roi[
-                "starter_id"
-            ]
+    mcherry_cell_properties = []
+    for (ch, roi), mcherry_df in mcherry_cells.groupby(["chamber", "roi"]):
+        # XXX: TEMPORARY FIX
+        if ch != "chamber_07":
             continue
+        px_size = 0.2
+        max_distance = max_starter_distance / px_size
+        if False:
+            px_size = issp.io.get_pixel_size(f"{project}/{mouse}/{ch}")
+            max_distance = max_starter_distance / px_size
+        # XXX: TEMPORARY FIX end
+
         if verbose:
-            print(f"Determining starter cell for {ch} {roi}")
-            # get the masks
-            print("Loading masks")
-        cell_masks = issp.segment.get_cell_masks(f"{project}/{mouse}/{ch}", roi)
-        spot_roi = rab_spot_df[
+            print(f"Finding starter cell for {ch} {roi}")
+
+        spots_roi = rab_spot_df[
             (rab_spot_df.cell_mask > 0)
             & (rab_spot_df.roi == roi)
             & (rab_spot_df.chamber == ch)
         ].copy()
-        if verbose:
-            print("Finding starter cell")
-        for st_id, st in starter_df.iterrows():
-            mask_id = cell_masks[int(st.y), int(st.x)]
-            mask_uid = f"{ch}_{roi}_{int(mask_id)}"
-            if (mask_id == 0) or (mask_uid not in rabies_cell_properties.index):
-                if verbose:
-                    print(f"Starter cell {st_id} not found in mask")
-                spot_roi["dist"] = np.sqrt(
-                    (spot_roi.x - st.x) ** 2 + (spot_roi.y - st.y) ** 2
-                )
-                mask_id = spot_roi.loc[spot_roi.dist.idxmin(), "cell_mask"]
-                mask_uid = f"{ch}_{roi}_{int(mask_id)}"
-                distance = spot_roi.loc[spot_roi.dist.idxmin(), "dist"]
-                if distance > max_starter_distance:
-                    if verbose:
-                        print(
-                            f"Starter cell {st_id} is too far ({distance:.2f} pixels), not assigning"
-                        )
-                    continue  # Skip this starter cell
-                else:
-                    if verbose:
-                        print(f"Closest cell found at {distance:.2f} pixels")
-            else:
-                if verbose:
-                    print(f"Starter cell {st_id} found in mask")
-                distance = 0
-            assert (
-                mask_uid in rabies_cell_properties.index
-            ), f"Mask {mask_uid} not found in rabies centroids"
-            # Check if the mask is already assigned
-            if rabies_cell_properties.loc[mask_uid, "starter"]:
-                existing_starter_id = rabies_cell_properties.loc[mask_uid, "starter_id"]
-                existing_distance = rabies_cell_properties.loc[mask_uid, "distance"]
-                if distance < existing_distance:
-                    if verbose:
-                        print(
-                            f"Starter cell {st_id} is closer ({distance:.2f} pixels) than existing starter "
-                            f"({existing_distance:.2f} pixels), reassigning"
-                        )
-                    # Find the next closest cell for the existing starter
-                    spot_roi["dist"] = np.sqrt(
-                        (spot_roi.x - st.x) ** 2 + (spot_roi.y - st.y) ** 2
-                    )
-                    next_closest_mask_id = spot_roi.loc[
-                        spot_roi.dist.idxmin(), "cell_mask"
-                    ]
-                    next_closest_mask_uid = f"{ch}_{roi}_{int(next_closest_mask_id)}"
-                    next_closest_distance = spot_roi.loc[spot_roi.dist.idxmin(), "dist"]
+        rab_cell_roi = rabies_cell_properties.query(
+            f"roi == {roi} and chamber == '{ch}'"
+        ).copy()
 
-                    # If the next closest cell is within max_starter_distance pixels, reassign the existing starter
-                    if next_closest_distance < max_starter_distance:
-                        if verbose:
-                            print(
-                                f"Reassigning existing starter {existing_starter_id} to the next closest cell "
-                                f"({next_closest_distance:.2f} pixels away)"
-                            )
-                        rabies_cell_properties.loc[
-                            next_closest_mask_uid, "starter"
-                        ] = True
-                        rabies_cell_properties.loc[
-                            next_closest_mask_uid, "starter_id"
-                        ] = existing_starter_id
-                        rabies_cell_properties.loc[
-                            next_closest_mask_uid, "distance"
-                        ] = next_closest_distance
-                    else:
-                        if verbose:
-                            print(
-                                f"Next closest cell to existing starter {existing_starter_id} is too far "
-                                f"({next_closest_distance:.2f} pixels), not reassigning"
-                            )
-                    # Reassign the current mask to the new starter
-                    rabies_cell_properties.loc[
-                        mask_uid, "starter_id"
-                    ] = f"{st.chamber}_{st.roi}_{st_id}"
-                    rabies_cell_properties.loc[mask_uid, "distance"] = distance
-                else:
-                    if verbose:
-                        print(
-                            f"Starter cell {st_id} is further ({distance:.2f} pixels) than existing starter "
-                            f"({existing_distance:.2f} pixels), searching for other cells"
-                        )
-                    # Continue searching for other cells within max_starter_distance pixels
-                    spot_roi["dist"] = np.sqrt(
-                        (spot_roi.x - st.x) ** 2 + (spot_roi.y - st.y) ** 2
-                    )
-                    mask_id = spot_roi.loc[spot_roi.dist.idxmin(), "cell_mask"]
-                    mask_uid = f"{ch}_{roi}_{int(mask_id)}"
-                    distance = spot_roi.loc[spot_roi.dist.idxmin(), "dist"]
-                    if distance > max_starter_distance:
-                        if verbose:
-                            print(
-                                f"Starter cell {st_id} is too far ({distance:.2f} pixels), not assigning"
-                            )
-                        continue  # Skip this starter cell
-                    else:
-                        if verbose:
-                            print(f"Closest cell found at {distance:.2f} pixels")
-            else:
-                rabies_cell_properties.loc[mask_uid, "starter"] = True
-                rabies_cell_properties.loc[
-                    mask_uid, "starter_id"
-                ] = f"{st.chamber}_{st.roi}_{st_id}"
-                rabies_cell_properties.loc[mask_uid, "distance"] = distance
-        # save for this roi
-        rab_this_roi = rabies_cell_properties[
-            (rabies_cell_properties.roi == roi) & (rabies_cell_properties.chamber == ch)
-        ].copy()
-        rab_this_roi.to_pickle(fname)
-    return rabies_cell_properties
+        for _, cell_info in mcherry_df.iterrows():
+            mcherry_cell_properties.append(
+                is_this_cell_a_starter(
+                    cell_info=cell_info,
+                    spots_roi=spots_roi,
+                    rab_cell_roi=rab_cell_roi,
+                    max_distance=max_distance,
+                    min_spot_number=min_spot_number,
+                    verbose=verbose,
+                )
+            )
+    mcherry_cell_properties = pd.DataFrame(mcherry_cell_properties)
+
+    # Now add starter info to rabies_cell_properties
+    rabies_cell_properties["mcherry_uid"] = None
+    rabies_cell_properties["distance2mcherry"] = None
+    rabies_cell_properties["is_starter"] = False
+    starters = mcherry_cell_properties.query("mask_uid != 'NaN'")
+    rabies_cell_properties.loc[starters.mask_uid, "is_starter"] = True
+    # add the relevant columns of rabies_cell_properties to mcherry_cell_properties
+    col2populate = dict(
+        mask_uid="mcherry_uid", distance_to_mask_centroid="distance2mcherry"
+    )
+    for col, target in col2populate.items():
+        v = starters.groupby("mask_uid")[col].apply(list)
+        rabies_cell_properties.loc[v.index, target] = v.values
+    n_starter_per_mask = v.map(len)
+    for mask, n in n_starter_per_mask[n_starter_per_mask > 1].items():
+        print(f"Multiple starters ({n}) for mask {mask}.")
+        mcherry_cell_properties.loc[
+            mcherry_cell_properties.mask_uid == mask, "error"
+        ] = f"{n} starters"
+
+    return rabies_cell_properties, mcherry_cell_properties
+
+
+def is_this_cell_a_starter(
+    cell_info: pd.DataFrame,
+    spots_roi: pd.DataFrame,
+    rab_cell_roi: pd.DataFrame,
+    max_distance: float = 100,
+    min_spot_number: int = 5,
+    verbose: bool = True,
+):
+    """Check if a cell is a starter cell.
+
+    Args:
+        cell_info (pd.Series): The cell information.
+        spots_roi (pd.DataFrame): The spots in the region of interest.
+        rab_cell_roi (pd.DataFrame): The rabies cells in the region of interest.
+        max_distance (int, optional): The maximum distance to consider a cell as a
+            starter cell in pixels. Defaults to 100 px.
+        min_spot_number (int, optional): The minimum number of spots to consider a
+            cell as a starter cell. Defaults to 5.
+        verbose (bool, optional): Print info about errors. Defaults to True.
+
+    Returns:
+        bool: True if the cell is a starter cell.
+    """
+    # Initialize the output
+    vals = dict(
+        is_starter=False,
+        n_spots_close=np.nan,
+        n_spots_assigned=np.nan,
+        distance_to_spot_centroid=np.nan,
+        distance_to_mask_centroid=np.nan,
+        main_barcode="NaN",
+        mask_uid="NaN",
+        error="None",
+        all_barcodes=[],
+        n_spot_per_barcode=[],
+    )
+    out = pd.concat([cell_info, pd.Series(data=vals)])
+
+    # get spots that are close enough from the cell
+    dist = np.sqrt((spots_roi.x - cell_info.x) ** 2 + (spots_roi.y - cell_info.y) ** 2)
+    spots = spots_roi[dist < max_distance]
+    out["n_spots_close"] = len(spots)
+    out["n_spots_assigned"] = len(spots[spots.cell_mask > 0])
+    if out["n_spots_assigned"] < min_spot_number:
+        return out
+
+    # get the centroids of all barcodes that have at least 5 spots
+    valid_spots = spots.groupby("corrected_bases").filter(lambda x: len(x) > 4)
+    if len(valid_spots) == 0:
+        return out
+    out["all_barcodes"] = list(valid_spots.corrected_bases.unique())
+    out["n_spot_per_barcode"] = valid_spots.corrected_bases.value_counts().to_dict()
+    # get the centroid of each barcode
+    centroids = (
+        valid_spots[["corrected_bases", "x", "y"]]
+        .groupby("corrected_bases")
+        .aggregate("mean")
+    )
+    # get the distance of each barcode to the cell
+    centroids["dist"] = np.sqrt(
+        (centroids.x - cell_info.x) ** 2 + (centroids.y - cell_info.y) ** 2
+    )
+    # get the closest barcode
+    closest = centroids.loc[centroids.dist.idxmin()]
+    out["main_barcode"] = closest.name
+    spots = valid_spots[valid_spots.corrected_bases == closest.name]
+    spots_per_mask = spots.mask_uid.value_counts()
+    if spots_per_mask.max() < min_spot_number:
+        if verbose:
+            print(
+                f"Assignment issue for mcherry cell {cell_info.name} (index "
+                + f"{cell_info.original_index}). {spots_per_mask.max()} "
+                + f"spots in main barcode ({closest.name} assigned to "
+                + f"{spots_per_mask.idxmax()})"
+            )
+        out["error"] = "Assignment issue. Not enough spots in the closest barcode"
+    out["mask_uid"] = spots_per_mask.idxmax()
+    out["distance_to_spot_centroid"] = closest.dist
+    mask_centroid = rab_cell_roi.loc[out["mask_uid"], ["x", "y"]]
+    out["distance_to_mask_centroid"] = np.sqrt(
+        (mask_centroid.x - cell_info.x) ** 2 + (mask_centroid.y - cell_info.y) ** 2
+    )
+    out["is_starter"] = True
+    return out
 
 
 @slurm_it(conda_env="iss-preprocess", print_job_id=True, slurm_options={"mem": "128G"})
