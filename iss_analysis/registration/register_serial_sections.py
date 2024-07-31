@@ -1,10 +1,192 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from functools import partial
+from multiprocessing import Pool
 from image_tools.registration.phase_correlation import phase_correlation
+from znamutils import slurm_it
 from iss_preprocess.segment.spots import make_spot_image
+from iss_analysis.io import get_sections_info
 
+from ..segment import get_barcode_in_cells
 from . import ara_registration
+from . import utils
+
+
+def register_all_serial_sections(
+    project: str,
+    mouse: str,
+    error_correction_ds_name: str,
+    window_size: int = 500,
+    min_spots: int = 10,
+    max_barcode_number: int = 50,
+    gaussian_width: float = 30,
+    n_workers: int = 1,
+    verbose=True,
+):
+    """Register all serial sections using phase correlation
+
+    Args:
+        project (str): Project name
+        mouse (str): Mouse name
+        error_correction_ds_name (str): Dataset name for error correction
+        window_size (int, optional): Window size in um. Defaults to 500.
+        min_spots (int, optional): Minimum number of spots found on each slice to
+            consider a barcode. Defaults to 10.
+        max_barcode_number (int, optional): Maximum number of barcodes to consider.
+            The one with the most spots will be kept. Defaults to 50.
+        gaussian_width (float, optional): Width of the gaussian kernel for spot images.
+            Defaults to 30.
+        n_workers (int, optional): Number of workers for parallel processing.
+            Defaults to 1.
+        verbose (bool, optional): Print progress. Defaults to True.
+
+    Returns:
+        dict: Results for all sections
+    """
+    section_infos = get_sections_info(project, mouse)
+    output = {}
+    for section, sec_info in section_infos.iterrows():
+        res = register_single_section(
+            project,
+            mouse,
+            error_correction_ds_name,
+            sec_info["chamber"],
+            sec_info["roi"],
+            window_size=window_size,
+            min_spots=min_spots,
+            max_barcode_number=max_barcode_number,
+            gaussian_width=gaussian_width,
+            n_workers=n_workers,
+            verbose=verbose,
+        )
+        output[section] = res
+    return output
+
+
+@slurm_it(conda_env="iss_preprocess")
+def register_single_section(
+    project: str,
+    mouse: str,
+    error_correction_ds_name: str,
+    ref_chamber: str,
+    ref_roi: int,
+    window_size: int = 500,
+    min_spots: int = 10,
+    max_barcode_number: int = 50,
+    gaussian_width: float = 30,
+    n_workers: int = 1,
+    verbose=True,
+):
+    """Register serial sections using phase correlation
+
+    This function will register serial sections to a reference section using phase
+    correlation. It will find the shift between the reference section and the previous
+    and next sections.
+
+    Args:
+        project (str): Project name
+        mouse (str): Mouse name
+        error_correction_ds_name (str): Dataset name for error correction
+        ref_chamber (str): Reference chamber name
+        ref_roi (int): Reference ROI number
+        window_size (int, optional): Window size in um. Defaults to 500.
+        min_spots (int, optional): Minimum number of spots found on each slice to
+            consider a barcode. Defaults to 10.
+        max_barcode_number (int, optional): Maximum number of barcodes to consider.
+            The one with the most spots will be kept. Defaults to 50.
+        gaussian_width (float, optional): Width of the gaussian kernel for spot images.
+            Defaults to 30.
+        n_workers (int, optional): Number of workers for parallel processing.
+            Defaults to 1.
+        verbose (bool, optional): Print progress. Defaults to True.
+
+    Returns:
+        dict: Results for previous and next sections
+
+    """
+    # reload the spot data, with the ara coordinates
+    (
+        rab_spot_df,
+        _,
+        rabies_cell_properties,
+    ) = get_barcode_in_cells(
+        project,
+        mouse,
+        error_correction_ds_name,
+        valid_chambers=None,
+        save_folder=None,
+        verbose=verbose,
+        add_ara_properties=True,
+    )
+
+    # add rotated ara coordinates
+    transform = ara_registration.get_ara_to_slice_rotation_matrix(spot_df=rab_spot_df)
+    rabies_cell_properties = ara_registration.rotate_ara_coordinate_to_slice(
+        rabies_cell_properties, transform=transform
+    )
+    # find cells in the ref slice, we will iterate on them
+    cells_in_ref = rabies_cell_properties.query(
+        f"chamber == '{ref_chamber}' and roi == {ref_roi}"
+    )
+
+    surrounding_rois = utils.get_surrounding_slices(
+        ref_chamber, ref_roi, project, mouse, include_ref=True
+    )
+    # to avoid to always have to groupby chamber and roi, make "slice"
+    surrounding_rois["slice"] = (
+        surrounding_rois.chamber
+        + "_"
+        + surrounding_rois.roi.map(lambda x: f"{int(x):02d}")
+    )
+
+    # now do previous and next slice, if they exist
+    ref_slice = f"{ref_chamber}_{ref_roi:02d}"
+    ref_slice_df = surrounding_rois.query("slice == @ref_slice").iloc[0]
+    res_befaft = dict()
+    for islice, slice_df in surrounding_rois.iterrows():
+        if slice_df.slice == ref_slice:
+            # not register to self
+            continue
+        if slice_df.absolute_section < ref_slice_df.absolute_section:
+            name = "previous"
+        else:
+            name = "next"
+        if verbose:
+            print(f"Registering {name} slice: {slice_df.slice}")
+        reg_one_cell = partial(
+            register_local_spots,
+            spot_df=rab_spot_df,
+            ref_slice=ref_slice,
+            target_slice=slice_df.slice,
+            window_size=window_size,
+            min_spots=min_spots,
+            max_barcode_number=max_barcode_number,
+            gaussian_width=gaussian_width,
+            verbose=False,
+            debug=False,
+        )
+        cell_coords = cells_in_ref[["ara_y_rot", "ara_z_rot"]].values
+        if n_workers == 1:
+            reg_out = list(tqdm(map(reg_one_cell, cell_coords), total=len(cell_coords)))
+        else:
+            if verbose:
+                print(f"Registering {len(cell_coords)} cells using {n_workers} workers")
+            with Pool(n_workers) as pool:
+                print("Starting registration")
+                reg_out = list(
+                    tqdm(
+                        pool.imap(reg_one_cell, cell_coords),
+                        total=len(cell_coords),
+                    )
+                )
+        res = pd.DataFrame(
+            columns=["shift_y", "shift_z", "maxcorr", "n_barcodes"],
+            data=np.vstack([np.hstack(a) for a in reg_out]),
+        )
+        res_befaft[name] = res
+
+    return res_befaft
 
 
 def register_local_spots(
