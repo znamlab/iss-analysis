@@ -64,6 +64,57 @@ def get_sections_info(project, mouse, chamber=None):
     return sections_info
 
 
+def get_mcherry_cells(project, mouse, verbose=True):
+    """Get the mCherry cells from the manual click.
+
+    Args:
+        project (str): The project name.
+        mouse (str): The mouse name.
+        verbose (bool, optional): Print verbose output. Default is True.
+
+    Returns:
+        pd.DataFrame: The mCherry cells.
+    """
+    manual_click = (
+        issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "mcherry_cells"
+    )
+    assert manual_click.exists()
+    mcherry = []
+    for fname in manual_click.glob("mcherry_cells*.csv"):
+        # names are like mcherry_cells_`mouse`_`chamber`_roi_`roinum`.csv
+        # so we can get the chamber and roi from them
+        match = re.match(rf"mcherry_cells_{mouse}_(.+)_roi_(\d+).csv", fname.name)
+        if match is None:
+            raise ValueError(f"Invalid filename {fname.name}")
+        chamber, roi = match.groups()
+        clicked = pd.read_csv(fname)
+        if not len(clicked):
+            if verbose:
+                print(f"No mCherry cells for {fname.stem} (csv is empty)")
+            continue
+
+        mch = pd.DataFrame(
+            columns=["x", "y"],
+            index=np.arange(len(clicked)),
+            data=clicked[["axis-1", "axis-0"]].values,
+        )
+        mch["chamber"] = chamber
+        mch["roi"] = int(roi)
+        mch["original_index"] = clicked["index"].astype(int)
+        mcherry.append(mch)
+    mcherry = pd.concat(mcherry, ignore_index=True)
+    mcherry["mcherry_uid"] = (
+        mcherry["chamber"]
+        + "_"
+        + mcherry["roi"].astype(str)
+        + "_"
+        + mcherry["original_index"].astype(str)
+    )
+    if verbose:
+        print(f"Loaded {len(mcherry)} mCherry cells position")
+    return mcherry
+
+
 def get_starter_cells(project, mouse, verbose=True):
     """Get the starter cells from the manual click.
 
