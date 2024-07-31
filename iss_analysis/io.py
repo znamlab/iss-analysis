@@ -90,6 +90,10 @@ def get_starter_cells(project, mouse, verbose=True):
                     print(f"No manual click for {chamber} roi {roi}")
                 continue
             clicked = pd.read_csv(fname)
+            if not len(clicked):
+                if verbose:
+                    print(f"No starter cells for {chamber} roi {roi} (csv is empty)")
+                continue
             st = pd.DataFrame(
                 columns=["chamber", "roi", "x", "y"], index=np.arange(len(clicked))
             )
