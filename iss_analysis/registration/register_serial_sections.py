@@ -283,9 +283,16 @@ def register_local_spots(
             + f"{len(best_barcodes)} barcodes"
         )
     if len(best_barcodes) == 0:
-        out = np.empty(2) * np.nan, np.nan, np.nan
+        # create empty shift, maxcorr and n_barcodes
+        out = np.empty(2) * np.nan, np.nan, 0
         if debug:
-            out += (np.zeros((0, 2, 0, 0)), np.zeros((0, 0, 0)), pd.Index([]))
+            out += (
+                np.zeros((0, 2)),  # shifts
+                np.zeros(0),  # max_corrs
+                np.zeros((0, 2, 0, 0)),  # phase_corrs
+                np.zeros((0, 0, 0)),  # spot_images
+                pd.Index([]),  # best_barcodes.index
+            )
         return out
 
     origin = np.array([spots.convolution_y.min(), spots.convolution_z.min()])
