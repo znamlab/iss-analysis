@@ -209,7 +209,7 @@ def register_local_spots(
     two slices.
 
     Args:
-        center_point (np.array): Center point in ARA coordinates
+        center_point (np.array): Center point (ara_y_rot, ara_z_rot) in mm
         spot_df (pd.DataFrame): DataFrame with spots.
         ref_slice (str): Reference slice name (format `{chamber}_{roi:02d}`)
         target_slice (str): Target slice name (format `{chamber}_{roi:02d}`)
@@ -298,7 +298,8 @@ def register_local_spots(
         enumerate(best_barcodes.index), total=len(best_barcodes), disable=not verbose
     ):
         bc_df = spots[spots["corrected_bases"] == bc]
-        for islice, (slice, slice_df) in enumerate(bc_df.groupby("slice")):
+        for islice, slice in enumerate([ref_slice, target_slice]):
+            slice_df = bc_df.query("slice == @slice")
             # rename to x, y for make_spot_image
             sp = pd.DataFrame(
                 slice_df[["convolution_y", "convolution_z"]].values - origin,
@@ -324,15 +325,15 @@ def register_local_spots(
         shifts[ibc], max_corrs[ibc], phase_corrs[ibc], _ = phase_correlation(
             ref, target, whiten=False
         )
-    sum_corr = phase_corrs.sum(axis=0)
+    avg_corr = phase_corrs.mean(axis=0)
     # find the max and the corresponding shift
-    maxcorr = np.max(sum_corr)
-    argmax = np.array(np.unravel_index(np.argmax(sum_corr), sum_corr.shape))
-    # shift is relative to center of image
-    shift = argmax - np.array(sum_corr.shape) // 2
+    maxcorr = np.max(avg_corr)
+    img_shape = np.array(avg_corr.shape)
+    shift = np.unravel_index(np.argmax(avg_corr), img_shape) - np.array(img_shape) / 2
+
     if verbose:
         print(f"Max correlation: {maxcorr} at shift {shift}")
     out = shift, maxcorr, len(best_barcodes)
     if debug:
-        out += phase_corrs, spot_images, best_barcodes.index
+        out += shifts, max_corrs, phase_corrs, spot_images, best_barcodes.index
     return out
