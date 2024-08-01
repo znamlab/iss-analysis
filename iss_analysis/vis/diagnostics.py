@@ -1,0 +1,126 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from ..registration import register_serial_sections
+
+
+def check_serial_registration(
+    cell_info,
+    ref_slice,
+    target_slice,
+    rab_spot_df,
+    rabies_cell_properties,
+    window_size=300,
+    min_spots=10,
+    max_barcode_number=50,
+    gaussian_width=30,
+):
+    """Plot the spots in the reference and target slice and the phase correlation
+        between them.
+
+    Args:
+        cell_info (pd.Series): Series with the cell information. Must have the columns
+            'ara_y_rot' and 'ara_z_rot'
+        ref_slice (str): Slice name of the reference slice
+        target_slice (str): Slice name of the target slice
+        rab_spot_df (pd.DataFrame): DataFrame with the spots
+        rabies_cell_properties (pd.DataFrame): DataFrame with the cell properties
+        window_size (int): Size of the window in microns
+        min_spots (int): Minimum number of spots to consider a barcode
+        max_barcode_number (int): Maximum number of barcodes to consider
+        gaussian_width (int): Width of the gaussian filter to apply to the spots
+
+    Returns:
+        fig (plt.Figure): Figure with the plots
+    """
+
+    if "slice" not in rabies_cell_properties.columns:
+        rabies_cell_properties["slice"] = (
+            rabies_cell_properties.chamber
+            + "_"
+            + rabies_cell_properties.roi.map(lambda x: f"{x:02d}")
+        )
+
+    (
+        shift,
+        maxcorr,
+        n_bcs,
+        all_shifts,
+        max_corrs,
+        phase_corrs,
+        spot_images,
+        best_barcodes,
+    ) = register_serial_sections.register_local_spots(
+        center_point=(cell_info.ara_y_rot, cell_info.ara_z_rot),
+        spot_df=rab_spot_df,
+        ref_slice=ref_slice,
+        target_slice=target_slice,
+        window_size=window_size,
+        min_spots=min_spots,
+        max_barcode_number=max_barcode_number,
+        gaussian_width=gaussian_width,
+        verbose=True,
+        debug=True,
+    )
+    # get spots with best_barcodes
+    kw = dict(cmap="tab20", vmin=0, vmax=19, s=5, alpha=0.5)
+    nr = np.ceil(len(best_barcodes) / 2).astype(int)
+    nc = 8
+    fig, axes = plt.subplots(nr, nc, figsize=(2 * nc, 2 * nr))
+    ws = window_size / 1000
+    spot_part = rab_spot_df.query(
+        f"ara_y_rot > {cell_info.ara_y_rot - ws} and ara_y_rot < {cell_info.ara_y_rot + ws} and ara_z_rot > {cell_info.ara_z_rot - ws} and ara_z_rot < {cell_info.ara_z_rot + ws}"
+    )
+    midpoint = phase_corrs[0].shape[0] // 2
+    # make an extent array around cell_info
+    sh = shift / 1000
+    extent = [
+        cell_info.ara_y_rot - ws,
+        cell_info.ara_y_rot + ws,
+        cell_info.ara_z_rot - ws,
+        cell_info.ara_z_rot + ws,
+    ]
+    for ibc, bc in enumerate(best_barcodes):
+        spots_ref = spot_part.query(f"slice == @ref_slice and corrected_bases == @bc")
+        spots_target = spot_part.query(
+            f"slice == @target_slice and corrected_bases == @bc"
+        )
+        axes[ibc % nr, 0 + 4 * (ibc // nr)].imshow(
+            spot_images[ibc][0], cmap="Greys", extent=extent, origin="lower"
+        )
+        axes[ibc % nr, 0 + 4 * (ibc // nr)].scatter(
+            spots_ref.ara_y_rot, spots_ref.ara_z_rot, c=spots_ref.barcode_id % 20, **kw
+        )
+        axes[ibc % nr, 1 + 4 * (ibc // nr)].imshow(
+            spot_images[ibc][0], cmap="Greys", extent=extent, origin="lower"
+        )
+        axes[ibc % nr, 1 + 4 * (ibc // nr)].scatter(
+            spots_target.ara_y_rot,
+            spots_target.ara_z_rot,
+            c=spots_target.barcode_id % 20,
+            **kw,
+        )
+        axes[ibc % nr, 2 + 4 * (ibc // nr)].imshow(
+            spot_images[ibc][0], cmap="Greys", extent=extent, origin="lower"
+        )
+        axes[ibc % nr, 2 + 4 * (ibc // nr)].scatter(
+            spots_target.ara_y_rot + sh[1],
+            spots_target.ara_z_rot + sh[0],
+            c=spots_target.barcode_id % 20,
+            **kw,
+        )
+        axes[ibc % nr, 3 + 4 * (ibc // nr)].imshow(
+            phase_corrs[ibc], cmap="viridis", origin="lower"
+        )
+        # find the row/col of the max of phase_corrs[ibc]
+        i, j = np.unravel_index(np.argmax(phase_corrs[ibc]), phase_corrs[ibc].shape)
+        axes[ibc % nr, 3 + 4 * (ibc // nr)].plot([midpoint, j], [midpoint, i], "k-o")
+        axes[ibc % nr, 3 + 4 * (ibc // nr)].scatter(
+            shift[1] + midpoint, shift[0] + midpoint, c="r"
+        )
+
+    for x in axes.flatten():
+        x.axis("equal")
+        x.set_xticks([])
+        x.set_yticks([])
+    plt.tight_layout()
+    return fig
