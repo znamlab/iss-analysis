@@ -51,6 +51,16 @@ def get_barcode_in_cells(
         name=error_correction_ds_name, flexilims_session=flm_sess
     )
     rab_spot_df = pd.read_pickle(err_corr_ds.path_full)
+    # add barcode_id for plotting
+    barcodes = list(rab_spot_df.corrected_bases.unique())
+    rab_spot_df["barcode_id"] = rab_spot_df.corrected_bases.map(
+        lambda x: barcodes.index(x)
+    )
+    # also add "slice" column to avoid indexing by chmaber and roi everytime
+    rab_spot_df["slice"] = (
+        rab_spot_df.chamber + "_" + rab_spot_df.roi.map(lambda x: f"{x:02d}")
+    )
+
     if verbose:
         print(f"Loaded {len(rab_spot_df)} rabies barcodes")
     if add_ara_properties:
