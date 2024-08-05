@@ -271,7 +271,8 @@ def assign_barcode_all_chambers(
             reload = True
             if conflicts != "skip":
                 reload = False
-            if reload and ("ended" not in out_ds.extra_attributes):
+            ended = out_ds.extra_attributes.get("ended", None)
+            if reload and (ended is None):
                 reload = False
             if reload:
                 if verbose:
@@ -308,7 +309,7 @@ def assign_barcode_all_chambers(
 @slurm_it(
     conda_env="iss-preprocess",
     print_job_id=True,
-    slurm_options={"mem": "64GB", "time": "48:00:00"},
+    slurm_options={"mem": "64GB", "time": "48:00:00", "cpus-per-task": 100},
 )
 def run_mask_assignment(
     project,
@@ -335,6 +336,21 @@ def run_mask_assignment(
         f"Assigning barcodes to masks for {project}/{mouse_name}/{chamber}/{roi}",
         verbose,
     )
+    params = dict(
+        p=p,
+        m=m,
+        background_spot_prior=background_spot_prior,
+        spot_distribution_sigma=spot_distribution_sigma,
+        max_iterations=max_iterations,
+        max_distance_to_mask=max_distance_to_mask,
+        inter_spot_distance_threshold=inter_spot_distance_threshold,
+        max_spot_group_size=max_spot_group_size,
+        max_total_combinations=max_total_combinations,
+        verbose=verbose,
+        base_column=base_column,
+        n_workers=n_workers,
+        run_by_groupsize=run_by_groupsize,
+    )
     flm_sess = flz.get_flexilims_session(project_id=project)
     error_dataset = flz.Dataset.from_flexilims(
         flexilims_session=flm_sess, name=error_correction_ds_name
@@ -344,8 +360,11 @@ def run_mask_assignment(
     )
     _log(f"Error corrected barcodes from {error_dataset.path_full}", verbose)
     _log(f"Flexilims dataset {assigned_dataset.full_name} with attributes:\n", verbose)
+    assigned_dataset.extra_attributes.update(params)
     _log(
-        "\n".join(f"{k}: {v}" for k, v in assigned_dataset.extra_attributes.items()),
+        "\n".join(
+            [""] + [f"{k}: {v}" for k, v in assigned_dataset.extra_attributes.items()]
+        ),
         verbose,
     )
     _log("Stitching masks", verbose)
@@ -366,23 +385,7 @@ def run_mask_assignment(
     del bc
     gc.collect()
     _log("Assigning barcodes to masks", verbose)
-    mask_assignment = assign_barcodes_to_masks(
-        spots,
-        mask_df,
-        p=p,
-        m=m,
-        background_spot_prior=background_spot_prior,
-        spot_distribution_sigma=spot_distribution_sigma,
-        max_iterations=max_iterations,
-        max_distance_to_mask=max_distance_to_mask,
-        inter_spot_distance_threshold=inter_spot_distance_threshold,
-        max_spot_group_size=max_spot_group_size,
-        max_total_combinations=max_total_combinations,
-        verbose=verbose,
-        base_column=base_column,
-        n_workers=n_workers,
-        run_by_groupsize=run_by_groupsize,
-    )
+    mask_assignment = assign_barcodes_to_masks(spots, mask_df, **params)
     _log("Saving mask assignment", verbose)
     _log(f"Assigned {mask_assignment.size} spots to masks", verbose)
     output = pd.DataFrame(index=spots.index, columns=["mask", "chamber", "roi", "spot"])
