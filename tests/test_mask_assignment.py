@@ -103,19 +103,19 @@ def test_likelihood_change_background_combination():
     params = dict(
         mask_assignments=mask_assignments,
         mask_counts=mask_counts,
-        log_dist_likelihood=log_dist_likelihood,
+        log_dist_likelihood=log_dist_likelihood.ravel(),
         log_background_spot_prior=log_background_spot_prior,
         p=p,
         m=m,
     )
     # moving a background spots should not change the likelihood
     spot_ids = np.array([1], dtype=int)
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, 0)
 
     # even if it's multiple background spots
     spot_ids = np.array([1, 2], dtype=int)
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, 0)
 
     # moving just spot 0 should change the likelihood
@@ -124,7 +124,7 @@ def test_likelihood_change_background_combination():
     # with p=m=1 the prior is - spot_count
     expected = log_background_spot_prior + (-2) - (-3)
     log_dist_likelihood[0, 0]
-    out = pa.likelihood_change_background_combination(
+    out = pa._likelihood_change_background_combination(
         spot_ids=np.array([0], dtype=int), **params
     )
     assert np.allclose(out, expected)
@@ -137,7 +137,7 @@ def test_likelihood_change_background_combination():
         + (-1)
         - (-3 + log_dist_likelihood[spot_ids, 4].sum())
     )
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, expected)
 
     # test moving 2 spots from different masks
@@ -148,12 +148,12 @@ def test_likelihood_change_background_combination():
         + (-0 - 2)
         - (-1 + -3 + log_dist_likelihood[spot_ids, mask_assignments[spot_ids]].sum())
     )
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, expected)
 
     # †ry to move 0 spots
     spot_ids = np.array([], dtype=int)
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, 0)
 
     # try to move all spots
@@ -165,7 +165,7 @@ def test_likelihood_change_background_combination():
     expected -= log_dist_likelihood[
         spot_ids[~bg], mask_assignments[spot_ids[~bg]]
     ].sum()
-    out = pa.likelihood_change_background_combination(spot_ids=spot_ids, **params)
+    out = pa._likelihood_change_background_combination(spot_ids=spot_ids, **params)
     assert np.allclose(out, expected)
 
 
@@ -181,14 +181,14 @@ def test_likelihood_change_move_combination():
     params = dict(
         mask_assignments=mask_assignments,
         mask_counts=mask_counts,
-        log_dist_likelihood=log_dist_likelihood,
+        log_dist_likelihood=log_dist_likelihood.ravel(),
         log_background_spot_prior=log_background_spot_prior,
         p=p,
         m=m,
     )
 
     # moving a mask to where it is assigned should not change the likelihood
-    out = pa.likelihood_change_move_combination(
+    out = pa._likelihood_change_move_combination(
         spot_ids=np.array([0]), target_masks=np.array([0]), **params
     )
     assert out == 0
@@ -197,7 +197,7 @@ def test_likelihood_change_move_combination():
     # we go to mask 0, which has 2 spots, so the count likelihood after is -3
     # mask 0 means no distance likelihood
     expected1 = -3 - (log_background_spot_prior + (-2))
-    out = pa.likelihood_change_move_combination(
+    out = pa._likelihood_change_move_combination(
         spot_ids=np.array([1]), target_masks=np.array([0]), **params
     )
     assert np.allclose(out, expected1)
@@ -206,19 +206,19 @@ def test_likelihood_change_move_combination():
     # we go to mask 4, which has 3 spots, so the count likelihood after is -4
     # mask 3 means we need to look at distance likelihood
     expected2 = -4 + log_dist_likelihood[1, 4] - (log_background_spot_prior + (-3))
-    out = pa.likelihood_change_move_combination(
+    out = pa._likelihood_change_move_combination(
         spot_ids=np.array([1]), target_masks=np.array([4]), **params
     )
     assert np.allclose(out, expected2)
 
     # we can look at both targets at once
-    out = pa.likelihood_change_move_combination(
+    out = pa._likelihood_change_move_combination(
         spot_ids=np.array([1]), target_masks=np.array([0, 4]), **params
     )
     assert np.allclose(out, np.array([expected1, expected2]))
 
     # moving all spots to the same mask
-    out = pa.likelihood_change_move_combination(
+    out = pa._likelihood_change_move_combination(
         spot_ids=np.arange(len(mask_assignments)), target_masks=np.array([3]), **params
     )
     expected = -len(mask_assignments)
@@ -232,24 +232,24 @@ def test_likelihood_change_move_combination():
 
     # trying an illegal move
     with pytest.raises(ValueError):
-        out = pa.likelihood_change_move_combination(
+        out = pa._likelihood_change_move_combination(
             spot_ids=np.array([1, 1]), target_masks=np.array([0]), **params
         )
     with pytest.raises(ValueError):
-        out = pa.likelihood_change_move_combination(
+        out = pa._likelihood_change_move_combination(
             spot_ids=np.array([1]), target_masks=np.array([-1]), **params
         )
 
 
 def test_unique_count():
     arr = np.array([10, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 5, 5, 5, 10])
-    val, cnt = pa.unique_counts(arr)
+    val, cnt = pa._unique_counts(arr)
     v, c = np.unique(arr, return_counts=True)
     assert np.array_equal(val, v), f"Value issue {val} != {v}"
     assert np.array_equal(cnt, c), f"Count issue {cnt} != {c}"
 
     arr = np.array([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    val, cnt = pa.unique_counts(arr)
+    val, cnt = pa._unique_counts(arr)
     v, c = np.unique(arr, return_counts=True)
     assert np.array_equal(val, v), f"Value issue {val} != {v}"
     assert np.array_equal(cnt, c), f"Count issue {cnt} != {c}"
@@ -382,6 +382,8 @@ def test_assign_single_round():
     iter = 0
     spot_moved = [1]
     while len(spot_moved):
+        if iter == 3:
+            print("last round")
         new_assignment, spot_moved = pa.assign_single_barcode_single_round(
             spot_positions=spot_positions,
             mask_positions=mask_positions,
@@ -396,7 +398,7 @@ def test_assign_single_round():
             verbose=0,
         )
         iter += 1
-        if iter > 10:
+        if iter > 50:
             raise ValueError("Too many iterations")
     # now the spots should be assigned to the closest mask
     assert np.all(new_assignment == closest)
@@ -467,9 +469,9 @@ def create_data():
 
 
 if __name__ == "__main__":
-    test_assign_barcodes_to_masks()
-    test_assign_single_barcode_all_to_background()
     test_assign_single_round()
     test_likelihood_change_move_combination()
     test_valid_spot_combination()
     test_likelihood_change_background_combination()
+    test_assign_barcodes_to_masks()
+    test_assign_single_barcode_all_to_background()

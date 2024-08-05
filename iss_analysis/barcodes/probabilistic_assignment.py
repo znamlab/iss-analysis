@@ -93,13 +93,16 @@ def assign_barcodes_to_masks(
         max_total_combinations=max_total_combinations,
         run_by_groupsize=run_by_groupsize,
     )
-
+    chunk_size = max(1, len(barcodes) // 10 // n_workers)
     if n_workers > 1:
         print(f"Starting parpool with {n_workers} workers", flush=True)
+
         with Pool(n_workers) as pool:
             assignment_by_bc = list(
                 tqdm(
-                    pool.imap(_assign_by_barcode, spot_positions_per_bc),
+                    pool.imap(
+                        _assign_by_barcode, spot_positions_per_bc, chunksize=chunk_size
+                    ),
                     total=len(barcodes),
                 )
             )
@@ -189,7 +192,7 @@ def assign_single_barcode(
 
     distances = distances[:, putative_targets]
     mask_positions = mask_positions[putative_targets]
-    log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+    log_dist_likelihood = (-0.5 * (distances / spot_distribution_sigma) ** 2).ravel()
     if mask_assignments is None:
         mask_assignments = np.argmin(distances, axis=1)
     else:
@@ -230,28 +233,29 @@ def assign_single_barcode(
     for i in range(max_iterations):
         if verbose > 0:
             print(f"---- Iteration {i} ----")
+        if i > 30:
+            print("Too many iterations")
+
         spot_moved = []
         for c_size, c_combi in enumerate(combi_by_size):
             if run_by_groupsize and (verbose > 1):
                 print(f"Combination size {c_size}")
-            move_this_size = [1]
-            while len(move_this_size) > 0:
-                new_assignments, move_this_size = assign_single_barcode_single_round(
-                    spot_positions=spot_positions,
-                    mask_positions=mask_positions,
-                    mask_assignments=new_assignments,
-                    max_distance_to_mask=max_distance_to_mask,
-                    log_background_spot_prior=log_background_spot_prior,
-                    p=p,
-                    m=m,
-                    spot_distribution_sigma=spot_distribution_sigma,
-                    distances=distances,
-                    log_dist_likelihood=log_dist_likelihood,
-                    combinations=c_combi,
-                    verbose=verb_inside,
-                )
-                if move_this_size:
-                    spot_moved.extend(move_this_size)
+            new_assignments, move_this_size = assign_single_barcode_single_round(
+                spot_positions=spot_positions,
+                mask_positions=mask_positions,
+                mask_assignments=new_assignments,
+                max_distance_to_mask=max_distance_to_mask,
+                log_background_spot_prior=log_background_spot_prior,
+                p=p,
+                m=m,
+                spot_distribution_sigma=spot_distribution_sigma,
+                distances=distances,
+                log_dist_likelihood=log_dist_likelihood,
+                combinations=c_combi,
+                verbose=verb_inside,
+            )
+            if move_this_size:
+                spot_moved.extend(move_this_size)
 
         if verbose > 0:
             nsp = np.sum([len(combi) for combi in spot_moved])
@@ -287,6 +291,8 @@ def assign_single_barcode(
     assignments = new_assignments.copy()
     nbg = assignments >= 0
     assignments[nbg] = target_ids[new_assignments[nbg]]
+    if verbose > 0:
+        print(f"Assigned {np.sum(nbg)} spots to masks")
     return assignments
 
 
@@ -327,8 +333,8 @@ def assign_single_barcode_single_round(
             considered. Ignored if combinations is not None. Default is 1e6.
         distances (np.array, optional): NxM array of distances between spots and masks.
             Default None.
-        log_dist_likelihood (np.array, optional): NxM array of log likelihoods of the
-            distances. Default None.
+        log_dist_likelihood (np.array, optional): 1D array of len = NxM array of log
+            likelihoods of the distances. Default None.
         combinations (list, optional): List of combinations of spots that are all within
             distance_threshold of each other. Default None.
         verbose (int): 0 does not print anything, 1 prints progress, 2 list combinations
@@ -365,16 +371,20 @@ def assign_single_barcode_single_round(
             spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
         )
     if log_dist_likelihood is None:
-        log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+        log_dist_likelihood = (
+            -0.5 * (distances / spot_distribution_sigma) ** 2
+        ).ravel()
 
     if len(combinations) == 0:
         return None
 
     # compute the likelihood of each combination
     likelihood_changes, best_targets = np.zeros((2, len(combinations)), dtype=float)
-    for i_comb, combi in tqdm(
-        enumerate(combinations), total=len(combinations), disable=verbose < 2
-    ):
+    for i_comb, combi in enumerate(combinations):
+        if len(combi) == 5 and (
+            np.abs(combi - np.array([10, 11, 12, 13, 14])).sum() == 0
+        ):
+            print(i_comb)
         (
             likelihood_changes[i_comb],
             best_targets[i_comb],
@@ -393,7 +403,7 @@ def assign_single_barcode_single_round(
     # sort by likelihood change
     order = np.argsort(likelihood_changes)[::-1]
     mask_changed = set()
-    mask_targeted = set()
+    # mask_targeted = set()
     spot_moved = []
     new_assignments = mask_assignments.copy()
     for i_combi in order:
@@ -407,17 +417,18 @@ def assign_single_barcode_single_round(
         spot_combi = combinations[i_combi]
         source_masks = mask_assignments[spot_combi]
         # we should not take spots from a mask where we added some
-        if any([m in mask_targeted for m in source_masks]):
+        if any([m in mask_changed for m in source_masks]):
             continue
         new_assignments[spot_combi] = target
         spot_moved.append(spot_combi)
         if target != -1:
-            mask_targeted.add(target)
+            mask_changed.add(target)
         mask_changed.update(source_masks[source_masks != -1])
 
     return new_assignments, spot_moved
 
 
+@njit
 def likelihood_change_single_combi(
     combi,
     mask_assignments,
@@ -429,7 +440,7 @@ def likelihood_change_single_combi(
     m,
     max_distance_to_mask,
 ):
-    bg_likelihood = likelihood_change_background_combination(
+    bg_likelihood = _likelihood_change_background_combination(
         combi,
         mask_assignments,
         mask_counts,
@@ -441,14 +452,19 @@ def likelihood_change_single_combi(
 
     likelihood_change = bg_likelihood
     best_target = -1
-    valid_targets = np.where(distances[combi].max(axis=0) < max_distance_to_mask)[0]
+    too_far = _max_along_0(distances[combi])
+
+    valid_targets = np.where(too_far < max_distance_to_mask)[0]
     current_assignments = np.unique(mask_assignments[combi])
+    current_assignments = current_assignments[current_assignments >= 0]
     # don't move to a mask that is already assigned
-    valid_targets = np.setdiff1d(valid_targets, current_assignments)
+    unvalid = np.searchsorted(valid_targets, current_assignments)
+    valid_targets = np.delete(valid_targets, unvalid)
+
     if len(valid_targets) == 0:
-        move_likelihood = -np.inf
+        return likelihood_change, best_target
     else:
-        move_likelihood = likelihood_change_move_combination(
+        move_likelihood = _likelihood_change_move_combination(
             combi,
             target_masks=valid_targets,
             mask_assignments=mask_assignments,
@@ -459,9 +475,10 @@ def likelihood_change_single_combi(
             m=m,
         )
     # keep only the best move
-    if np.max(move_likelihood) > bg_likelihood:
-        likelihood_change = np.max(move_likelihood)
-        best_target = valid_targets[np.argmax(move_likelihood)]
+    id_max_change = np.argmax(move_likelihood)
+    if move_likelihood[id_max_change] > bg_likelihood:
+        likelihood_change = move_likelihood[id_max_change]
+        best_target = valid_targets[id_max_change]
     return likelihood_change, best_target
 
 
@@ -503,12 +520,14 @@ def assign_single_barcode_all_to_background(
             distances = np.linalg.norm(
                 spot_positions[:, None, :] - mask_positions[None, :, :], axis=2
             )
-        log_dist_likelihood = -0.5 * (distances / spot_distribution_sigma) ** 2
+        log_dist_likelihood = (
+            -0.5 * (distances / spot_distribution_sigma) ** 2
+        ).ravel()
 
     spot_moved = []
     for current_mask in np.unique(mask_assignments[mask_assignments >= 0]):
         combi = np.where(mask_assignments == current_mask)[0]
-        bg_likelihood = likelihood_change_background_combination(
+        bg_likelihood = _likelihood_change_background_combination(
             combi,
             mask_assignments,
             mask_counts,
@@ -603,7 +622,8 @@ def valid_spot_combinations(
     return out
 
 
-def likelihood_change_background_combination(
+@njit
+def _likelihood_change_background_combination(
     spot_ids,
     mask_assignments,
     mask_counts,
@@ -618,7 +638,8 @@ def likelihood_change_background_combination(
         spot_ids (np.array): 1D array with the spot IDs.
         mask_assignments (np.array): 1D array with the current mask assignments.
         mask_counts (np.array): 1D array with the current mask counts.
-        log_dist_likelihood (np.array): N spots x M masks array of distance likelihoods.
+        log_dist_likelihood (np.array): 1D array of len N spots x M masks array of
+            distance likelihoods.
         log_background_spot_prior (float): Log background spot prior.
         p (float): Power of the spot count prior.
         m (float): Length scale of the spot count prior.
@@ -630,7 +651,7 @@ def likelihood_change_background_combination(
     new_likelihood = log_background_spot_prior * len(spot_ids)
     # and new spot count prior for spots that were assigned
     was_assigned = mask_assignments[spot_ids] != -1
-    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][was_assigned])
+    changed_mask, changed_n = _unique_counts(mask_assignments[spot_ids][was_assigned])
     new_counts = mask_counts.copy()
     new_counts[changed_mask] -= changed_n
     new_likelihood += _spot_count_prior(new_counts[changed_mask], p, m).sum()
@@ -641,56 +662,18 @@ def likelihood_change_background_combination(
     old_likelihood += _spot_count_prior(mask_counts[changed_mask], p, m).sum()
     # + old distance likelihood for spots that were assigned
     old_likelihood += log_dist_likelihood[
-        spot_ids[was_assigned], mask_assignments[spot_ids][was_assigned]
+        _ravel_2d_index(
+            spot_ids[was_assigned],
+            mask_assignments[spot_ids][was_assigned],
+            len(mask_counts),
+        )
     ].sum()
+
     return new_likelihood - old_likelihood
 
 
 @njit
-def numba_likelihood_change_background_combination(
-    spot_ids,
-    mask_assignments,
-    mask_counts,
-    log_dist_likelihood,
-    log_background_spot_prior,
-    p,
-    m,
-):
-    """Likelihood change for a combination of spots to all become background spots.
-
-    Args:
-        spot_ids (np.array): 1D array with the spot IDs.
-        mask_assignments (np.array): 1D array with the current mask assignments.
-        mask_counts (np.array): 1D array with the current mask counts.
-        log_dist_likelihood (np.array): N spots x M masks array of distance likelihoods.
-        log_background_spot_prior (float): Log background spot prior.
-        p (float): Power of the spot count prior.
-        m (float): Length scale of the spot count prior.
-
-    Returns:
-        float: Likelihood change for this spot combination to become a background spots.
-    """
-    # new likelihood is new spot to the background
-    new_likelihood = log_background_spot_prior * len(spot_ids)
-    # and new spot count prior for spots that were assigned
-    was_assigned = mask_assignments[spot_ids] != -1
-    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][was_assigned])
-    new_counts = mask_counts.copy()
-    new_counts[changed_mask] -= changed_n
-    new_likelihood += _spot_count_prior(new_counts[changed_mask], p, m).sum()
-
-    # old likelihood is old spot to the background * log_bg
-    old_likelihood = log_background_spot_prior * (~was_assigned).sum()
-    # + old spot count prior for spots that were assigned
-    old_likelihood += _spot_count_prior(mask_counts[changed_mask], p, m).sum()
-    # + old distance likelihood for spots that were assigned
-    old_likelihood += log_dist_likelihood[
-        spot_ids[was_assigned], mask_assignments[spot_ids][was_assigned]
-    ].sum()
-    return new_likelihood - old_likelihood
-
-
-def likelihood_change_move_combination(
+def _likelihood_change_move_combination(
     spot_ids,
     target_masks,
     mask_assignments,
@@ -722,27 +705,40 @@ def likelihood_change_move_combination(
         raise ValueError("Spot IDs must be unique")
 
     # New likelihood depends on the target mask
-    new_counts = make_new_counts(target_masks, mask_counts, nspots=len(spot_ids))
+    new_counts = _make_new_counts(target_masks, mask_counts, nspots=len(spot_ids))
     bg = mask_assignments[spot_ids] == -1
-    changed_mask, changed_n = unique_counts(mask_assignments[spot_ids][~bg])
+    changed_mask, changed_n = _unique_counts(mask_assignments[spot_ids][~bg])
     new_counts[:, changed_mask] -= changed_n
-    new_likelihood = _spot_count_prior(
-        new_counts[np.arange(len(target_masks)), target_masks], p, m
-    )
+    ravel_cnt = new_counts.reshape(-1)[
+        _ravel_2d_index(np.arange(len(target_masks)), target_masks, len(mask_counts))
+    ]
+    new_likelihood = _spot_count_prior(ravel_cnt, p, m)
+
     # if changed_mask is not target, we need to add to the new likelihood
-    masks2check = repeat_masks(target_masks, changed_mask)
+    masks2check = _repeat_masks(target_masks, changed_mask)
     already_done = masks2check == target_masks[:, None]
     new_likelihood += _spot_count_prior(
         new_counts[:, changed_mask] * (~already_done), p, m
     ).sum(axis=1)
-    # distance lieklihood between spots and target masks
-    ids, targets = meshgrid_ij(spot_ids, target_masks)
-    new_likelihood += log_dist_likelihood[ids, targets].sum(axis=0)
+    # distance likelihood between spots and target masks
+    # tow ooption here
+    # option1
+    # ids, targets = _meshgrid_ij(spot_ids, target_masks)
+    # new_likelihood += log_dist_likelihood[ids, targets].sum(axis=0)
+
+    # option2
+    for s_id in spot_ids:
+        new_likelihood += log_dist_likelihood[
+            _ravel_2d_index(s_id, target_masks, len(mask_counts))
+        ]
+
     # this includes also cases where the mask did not actually change
 
     old_likelihood = _spot_count_prior(mask_counts[target_masks], p, m)
     old_likelihood += log_dist_likelihood[
-        spot_ids[~bg], mask_assignments[spot_ids[~bg]]
+        _ravel_2d_index(
+            spot_ids[~bg], mask_assignments[spot_ids[~bg]], len(mask_counts)
+        )
     ].sum()
     old_likelihood += log_background_spot_prior * bg.sum()
     # add spot count for the source mask
@@ -751,6 +747,21 @@ def likelihood_change_move_combination(
     ).sum(axis=1)
 
     return new_likelihood - old_likelihood
+
+
+@njit
+def _ravel_2d_index(i, j, n):
+    """Convert 2D index to 1D index.
+
+    Args:
+        i (int): Row index.
+        j (int): Column index.
+        n (int): Number of columns.
+
+    Returns:
+        int: 1D index.
+    """
+    return i * n + j
 
 
 @njit
@@ -770,7 +781,7 @@ def _spot_count_prior(nspots: int, p: float, m: float):
 
 
 @njit
-def unique_counts(arr):
+def _unique_counts(arr):
     arr = np.ascontiguousarray(arr)
     arr = np.sort(arr)
     mask = np.empty(len(arr) + 1, dtype=np.bool_)
@@ -785,7 +796,7 @@ def unique_counts(arr):
 
 @njit
 # make numba compatible version of meshgrid for 2d arrays with ij indexing
-def meshgrid_ij(x, y):
+def _meshgrid_ij(x, y):
     x = np.ascontiguousarray(x)
     y = np.ascontiguousarray(y)
     xx = np.empty((len(x), len(y)), dtype=x.dtype)
@@ -798,7 +809,7 @@ def meshgrid_ij(x, y):
 
 
 @njit
-def make_new_counts(target_masks, mask_counts, nspots):
+def _make_new_counts(target_masks, mask_counts, nspots):
     new_counts = np.empty((len(target_masks), len(mask_counts)), dtype=np.int64)
     for i, mask in enumerate(target_masks):
         new_counts[i] = mask_counts.copy()
@@ -807,8 +818,18 @@ def make_new_counts(target_masks, mask_counts, nspots):
 
 
 @njit
-def repeat_masks(target_masks, changed_mask):
+def _repeat_masks(target_masks, changed_mask):
     masks2check = np.empty((len(target_masks), len(changed_mask)), dtype=np.int64)
     for i, mask in enumerate(changed_mask):
         masks2check[:, i] = mask
     return masks2check
+
+
+@njit
+def _max_along_0(arr):
+    # def np_apply_along_axis(func1d, axis, arr):
+    assert arr.ndim == 2
+    result = np.empty(arr.shape[1])
+    for i in range(len(result)):
+        result[i] = np.max(arr[:, i])
+    return result
