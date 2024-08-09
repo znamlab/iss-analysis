@@ -13,13 +13,15 @@ def check_serial_registration(
     min_spots=10,
     max_barcode_number=50,
     gaussian_width=30,
+    spots_kwargs=None,
+    shifts_to_use=None,
 ):
     """Plot the spots in the reference and target slice and the phase correlation
         between them.
 
     Args:
         cell_info (pd.Series): Series with the cell information. Must have the columns
-            'ara_y_rot' and 'ara_z_rot'
+            "ara_y_rot" and "ara_z_rot"
         ref_slice (str): Slice name of the reference slice
         target_slice (str): Slice name of the target slice
         rab_spot_df (pd.DataFrame): DataFrame with the spots
@@ -28,6 +30,9 @@ def check_serial_registration(
         min_spots (int): Minimum number of spots to consider a barcode
         max_barcode_number (int): Maximum number of barcodes to consider
         gaussian_width (int): Width of the gaussian filter to apply to the spots
+        spots_kwargs (dict): Dictionary with the arguments to pass to the scatter plot
+            Default is None
+        shifts_to_use (np.ndarray): Array with the shifts to use. Default is None
 
     Returns:
         fig (plt.Figure): Figure with the plots
@@ -63,16 +68,23 @@ def check_serial_registration(
     )
     # get spots with best_barcodes
     kw = dict(cmap="tab20", vmin=0, vmax=19, s=5, alpha=0.5)
+    kw.update(spots_kwargs or {})
     nr = np.ceil(len(best_barcodes) / 2).astype(int)
-    nc = 8
-    fig, axes = plt.subplots(nr, nc, figsize=(2 * nc, 2 * nr))
+    nc = 8 if len(best_barcodes) > 1 else 4
+    fig, axes = plt.subplots(nr, nc, figsize=(2 * nc, 2 * nr), squeeze=False)
     ws = window_size / 1000
     spot_part = rab_spot_df.query(
-        f"ara_y_rot > {cell_info.ara_y_rot - ws} and ara_y_rot < {cell_info.ara_y_rot + ws} and ara_z_rot > {cell_info.ara_z_rot - ws} and ara_z_rot < {cell_info.ara_z_rot + ws}"
+        f"ara_y_rot > {cell_info.ara_y_rot - ws} "
+        + f"and ara_y_rot < {cell_info.ara_y_rot + ws} "
+        + f"and ara_z_rot > {cell_info.ara_z_rot - ws} "
+        + f"and ara_z_rot < {cell_info.ara_z_rot + ws}"
     )
     midpoint = phase_corrs[0].shape[0] // 2
     # make an extent array around cell_info
-    sh = shift / 1000
+    if shifts_to_use is None:
+        sh = shift / 1000
+    else:
+        sh = np.array(shifts_to_use, dtype=float) / 1000
     extent = [
         cell_info.ara_y_rot - ws,
         cell_info.ara_y_rot + ws,
