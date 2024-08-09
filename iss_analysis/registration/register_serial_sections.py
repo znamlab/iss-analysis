@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from image_tools.registration.phase_correlation import phase_correlation
 from znamutils import slurm_it
 from iss_preprocess.segment.spots import make_spot_image
-from iss_analysis.io import get_sections_info
+from iss_analysis.io import get_sections_info, get_genes_spots
 
 from ..segment import get_barcode_in_cells
 from . import ara_registration
@@ -68,9 +68,10 @@ def register_all_serial_sections(
 def register_single_section(
     project: str,
     mouse: str,
-    error_correction_ds_name: str,
     ref_chamber: str,
     ref_roi: int,
+    use_rabies: bool = True,
+    error_correction_ds_name: str = None,
     window_size: int = 500,
     min_spots: int = 10,
     max_barcode_number: int = 50,
@@ -87,9 +88,12 @@ def register_single_section(
     Args:
         project (str): Project name
         mouse (str): Mouse name
-        error_correction_ds_name (str): Dataset name for error correction
         ref_chamber (str): Reference chamber name
         ref_roi (int): Reference ROI number
+        use_rabies (bool, optional): Use rabies data if True, genes data otherwise.
+            Defaults to True.
+        error_correction_ds_name (str): Dataset name for error correction. Must be
+            provided if use_rabies is True.
         window_size (int, optional): Window size in um. Defaults to 500.
         min_spots (int, optional): Minimum number of spots found on each slice to
             consider a barcode. Defaults to 10.
@@ -106,6 +110,9 @@ def register_single_section(
 
     """
     # reload the spot data, with the ara coordinates
+
+    if error_correction_ds_name is None:
+        raise ValueError("error_correction_ds_name must be provided")
     (
         rab_spot_df,
         _,
@@ -119,6 +126,9 @@ def register_single_section(
         verbose=verbose,
         add_ara_properties=True,
     )
+    if not use_rabies:
+        rab_spot_df = get_genes_spots(project, mouse, add_ara_info=True)
+        rab_spot_df["corrected_bases"] = "GENES"
 
     # add rotated ara coordinates
     transform = ara_registration.get_ara_to_slice_rotation_matrix(spot_df=rab_spot_df)
