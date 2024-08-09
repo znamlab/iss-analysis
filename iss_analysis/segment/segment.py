@@ -18,6 +18,7 @@ def get_barcode_in_cells(
     save_folder=None,
     verbose=True,
     add_ara_properties=True,
+    redo=False,
 ):
     """Count barcodes in cells for a given chamber and roi.
 
@@ -38,6 +39,7 @@ def get_barcode_in_cells(
         verbose (bool, optional): Print progress. Defaults to True.
         add_ara_properties (bool, optional): Add ARA properties to the dataframe.
             Defaults to True.
+        redo (bool, optional): Redo the ARA assignment. Defaults to False.
 
     Returns:
         pd.DataFrame: The rabies spots dataframe.
@@ -77,7 +79,7 @@ def get_barcode_in_cells(
     rab_spot_df["cell_mask"] = np.zeros_like(rab_spot_df.x.values) * np.nan
     for data_path in chambers:
         chamber = issp.io.get_processed_path(data_path).stem
-        print(f"   chamber {chamber}")
+        print(f"    {chamber}")
         if (valid_chambers is not None) and (chamber not in valid_chambers):
             continue
         rabies_mask_dss = flz.get_datasets(
@@ -104,7 +106,7 @@ def get_barcode_in_cells(
                     ara_info_folder
                     / f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
                 )
-                if target.exists():
+                if target.exists() and (not redo):
                     ara_info = pd.read_pickle(target)
                 else:
                     print("ARA info not found, recreate them")
