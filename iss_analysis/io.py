@@ -4,6 +4,7 @@ import re
 import scipy.sparse as ss
 import h5py
 import iss_preprocess as issp
+from iss_preprocess.pipeline.ara_registration import spots_ara_infos
 
 
 def get_chamber_datapath(acquisition_folder, chamber_list=None):
@@ -157,6 +158,55 @@ def get_starter_cells(project, mouse, verbose=True):
     if verbose:
         print(f"Loaded {len(starters)} starter cells position")
     return starters
+
+
+def get_genes_spots(project, mouse, add_ara_info=True, verbose=False, reload=True):
+    """Get the genes spots from the processed data with ARA information.
+
+    Args:
+        project (str): The project name.
+        mouse (str): The mouse name.
+        chamber (str): The chamber name.
+        add_ara_info (bool, optional): Add ARA information. Default is True.
+        verbose (bool, optional): Print more info. Default is False
+        reload (bool, optional): Reload the ARA information. Default is True.
+
+    Returns:
+        pd.DataFrame: The genes spots with ARA information.
+    """
+    sec_inf = get_sections_info(project, mouse, chamber=None)
+    all_spots = []
+    for section, sec_df in sec_inf.iterrows():
+        roi = sec_df["roi"]
+        chamber = sec_df["chamber"]
+        data_path = f"{project}/{mouse}/{chamber}"
+        spot_file = (
+            issp.io.get_processed_path(data_path) / f"genes_round_spots_{roi}.pkl"
+        )
+        assert spot_file.exists(), f"{spot_file} does not exist"
+        spots = pd.read_pickle(spot_file)
+        spots["slice"] = f"{chamber}_{roi:02d}"
+        spots["roi"] = roi
+        spots["chamber"] = chamber
+        if not len(spots):
+            raise ValueError(f"No spots for {spot_file}")
+        if add_ara_info:
+            try:
+                spots = spots_ara_infos(
+                    data_path,
+                    spots,
+                    roi,
+                    atlas_size=10,
+                    acronyms=True,
+                    inplace=True,
+                    full_scale_coordinates=False,
+                    reload=reload,
+                    verbose=verbose,
+                )
+            except IOError as e:
+                print(f"Error for {chamber} roi {roi}: {e}")
+        all_spots.append(spots)
+    return pd.concat(all_spots, ignore_index=True)
 
 
 def filter_genes(gene_names):
