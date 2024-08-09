@@ -31,12 +31,23 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
         chamber_rois = spot_df.groupby(["chamber", "roi"]).groups.keys()
     else:
         chamber_rois = [(ref_chamber, ref_roi)]
+    # exclude spots that are out of the brain
+    spot_df = spot_df.query("area_id > 0")
+    # any set of 3 spots should be enough to determine the plane, but there is some
+    # variability (pixel resolution?) so we will use a bunch of the spots
+    max_n_spots = 1000
     all_planes = []
     for chamber, roi in chamber_rois:
         spots = spot_df.query(f"chamber == '{chamber}' and roi == {roi}")
         ara_coords = spots[[f"ara_{i}" for i in "xyz"]].values
         ara_coords = ara_coords[~np.any(np.isnan(ara_coords), axis=1)]
-        plane_coeffs = utils.fit_plane_to_points(ara_coords)
+        if not len(ara_coords):
+            print(f"No spots in chamber {chamber}, roi {roi}")
+            continue
+        nspots_to_use = min(len(ara_coords), max_n_spots)
+        plane_coeffs = utils.fit_plane_to_points(
+            ara_coords[:: len(ara_coords) // nspots_to_use, :]
+        )
         all_planes.append(plane_coeffs)
     all_planes = np.array(all_planes)
     median_plane = np.median(all_planes, axis=0)
@@ -47,6 +58,7 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
     # find a vector that is in the plane and pointing dorsaly
     # up is [0,1,0], the plane equation is ax+by+cz=0, so if we set x=0, we get
     # by+cz=0, so y=1 and z=-b/c
+    assert plane_coeffs[1] != 0, "Failed to fit. Plane is vertical"
     v = np.array([0, 1, -plane_coeffs[2] / plane_coeffs[1]])
     v /= np.linalg.norm(v)
     # dim 1 is orthogonal to the plane normal and u
