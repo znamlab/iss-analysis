@@ -132,9 +132,9 @@ def assign_barcodes_to_masks(
 def assign_single_barcode_variational_gmm(
     spot_positions,
     cell_positions,
-    alpha_background=100,
-    alpha_cells=0.1,
-    log_background_density=-13,
+    alpha_background=None,
+    alpha_cells=0.15,
+    log_background_density=-11,
     max_iter=1000,
     tol=1e-4,
     sigma=50,
@@ -154,6 +154,7 @@ def assign_single_barcode_variational_gmm(
         spot_positions (np.ndarray): Array of shape (n_spots, 2) containing the positions of the spots.
         cell_positions (np.ndarray): Array of shape (n_cells, 2) containing the positions of the cells.
         alpha_background (float): Concentration parameter of the Direchlet prior on the mixing coefficient for the background component.
+            If None, it is set to the sum of the concentration parameters for the cell components.
         alpha_cells (float): Concentration parameter of the Direchlet prior on the mixing coefficients for the cell components.
         log_background_density (float): Log of the density of the background component.
         max_iter (int): Maximum number of iterations for the variational inference algorithm.
@@ -167,8 +168,6 @@ def assign_single_barcode_variational_gmm(
     """
     # Concentration parameters on the Direchlet prior on mixing coefficients - one value for background and cells
     num_cells = cell_positions.shape[0]
-    alpha_cells = np.ones(num_cells) * alpha_cells
-    alpha_0 = np.concatenate(([alpha_background], alpha_cells))
     mean_spot_position = spot_positions.mean(axis=0)
     precision_cells = 1 / sigma**2
     precisions = np.concatenate(([1], np.ones(num_cells) * precision_cells))
@@ -176,9 +175,12 @@ def assign_single_barcode_variational_gmm(
     distances = np.linalg.norm(spot_positions[:, None] - mus[None], axis=2)
     idx = distances.min(axis=0) < max_distance_to_mask
     idx[0] = True  # always keep the background
+    alpha_cells = np.ones(np.sum(idx) - 1) * alpha_cells
+    if alpha_background is None:
+        alpha_background = np.sum(alpha_cells)
+    alpha_0 = np.concatenate(([alpha_background], alpha_cells))
     distances = distances[:, idx]
     precisions = precisions[idx]
-    alpha_0 = alpha_0[idx]
     u = -0.5 * (distances**2) * precisions[None]
     # background density is uniform
     u[:, 0] = log_background_density
