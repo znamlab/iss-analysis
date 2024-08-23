@@ -5,6 +5,7 @@ from functools import partial
 from multiprocessing import Pool
 from warnings import warn
 from numba import njit
+from scipy.special import digamma
 
 # Sometimes the likelihoods are not exactly 0 but 10-15 or so, so we need to use a
 # small number to consider them zero
@@ -112,9 +113,9 @@ def assign_barcodes_to_masks(
         )
     assignments_id = pd.Series(index=spots.index, data=-2, dtype=int)
     for i_bar, barcode in enumerate(barcodes):
-        assignments_id.loc[
-            spots[base_column].astype(str) == barcode
-        ] = assignment_by_bc[i_bar]
+        assignments_id.loc[spots[base_column].astype(str) == barcode] = (
+            assignment_by_bc[i_bar]
+        )
 
     # convert assignment index to actual mask value
     assignments = pd.Series(
@@ -126,6 +127,77 @@ def assign_barcodes_to_masks(
         warn("Some spots were not assigned")
         assignments[assignments_id == -2] = -2
     return assignments
+
+
+def aassign_single_barcode_variational_gmm(
+    spot_positions,
+    cell_positions,
+    alpha_background=1,
+    alpha_cells=0.1,
+    log_background_density=-11,
+    max_iter=1000,
+    tol=1e-4,
+    sigma=50,
+    max_distance_to_mask=300,
+):
+    """
+    Assigns spots to cells using a variational inference algorithm for a Bayesian Gaussian mixture model.
+    The model assumes that the spots are generated from a Gaussian mixture with components centered at
+    the cell positions and a background component with uniform density. The prior over mixing coefficients
+    follows a Direchlet distribution with the specified concentration parameters. The algorithm uses a
+    variational inference algorithm to estimate the posterior distribution of the component assignments.
+
+    The algorithm terminates when the change in the number of spots assigned to the background component is
+    less than the specified tolerance or the maximum number of iterations is reached.
+
+    Args:
+        spot_positions (np.ndarray): Array of shape (n_spots, 2) containing the positions of the spots.
+        cell_positions (np.ndarray): Array of shape (n_cells, 2) containing the positions of the cells.
+        alpha_background (float): Concentration parameter of the Direchlet prior on the mixing coefficient for the background component.
+        alpha_cells (float): Concentration parameter of the Direchlet prior on the mixing coefficients for the cell components.
+        log_background_density (float): Log of the density of the background component.
+        max_iter (int): Maximum number of iterations for the variational inference algorithm.
+        tol (float): Tolerance for convergence of the variational inference algorithm.
+        sigma (float): Standard deviation of the Gaussian components.
+        max_distance_to_mask (float): Maximum distance to a mask for a cell to be considered for assignment.
+
+    Returns:
+        np.ndarray: Array of shape (n_spots,) containing the indices of the cells to which the spots are assigned.
+
+    """
+    # Concentration parameters on the Direchlet prior on mixing coefficients - one value for background and cells
+    num_cells = cell_positions.shape[0]
+    alpha_cells = np.ones(num_cells) * alpha_cells
+    alpha_0 = np.concatenate(([alpha_background], alpha_cells))
+    mean_spot_position = spot_positions.mean(axis=0)
+    precision_cells = 1 / sigma**2
+    precisions = np.concatenate(([1], np.ones(num_cells) * precision_cells))
+    mus = np.concatenate(([mean_spot_position], cell_positions))
+    distances = np.linalg.norm(spot_positions[:, None] - mus[None], axis=2)
+    idx = distances.min(axis=0) < max_distance_to_mask
+    idx[0] = True  # always keep the background
+    distances = distances[:, idx]
+    precisions = precisions[idx]
+    alpha_0 = alpha_0[idx]
+    u = -0.5 * (distances**2) * precisions[None]
+    # background density is uniform
+    u[:, 0] = log_background_density
+    N = np.zeros_like(alpha_0)
+    for iter in range(max_iter):
+        old_N0 = N[0]
+        # calculate E[log pi] - equivalent to the M step
+        alphas = alpha_0 + N
+        # calculate responsibilities - E step
+        E_log_pi = digamma(alphas) - digamma(np.sum(alphas))
+        rhos = np.exp(u + E_log_pi[None] + 0.5 * np.log(precisions[None]))
+        rs = rhos / np.sum(rhos, axis=1)[:, None]
+        # update N
+        N = rs.sum(axis=0)
+        if np.abs(N[0] - old_N0) < tol:
+            break
+    assignment = rs.argmax(axis=1)
+    cells_used = np.nonzero(idx)[0]
+    return cells_used[assignment]
 
 
 def assign_single_barcode(
