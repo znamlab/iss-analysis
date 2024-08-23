@@ -132,9 +132,9 @@ def assign_barcodes_to_masks(
 def aassign_single_barcode_variational_gmm(
     spot_positions,
     cell_positions,
-    alpha_background=1,
+    alpha_background=100,
     alpha_cells=0.1,
-    log_background_density=-11,
+    log_background_density=-13,
     max_iter=1000,
     tol=1e-4,
     sigma=50,
