@@ -129,7 +129,7 @@ def assign_barcodes_to_masks(
     return assignments
 
 
-def aassign_single_barcode_variational_gmm(
+def assign_single_barcode_variational_gmm(
     spot_positions,
     cell_positions,
     alpha_background=100,
