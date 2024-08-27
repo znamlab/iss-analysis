@@ -3,11 +3,13 @@ import pandas as pd
 from tqdm import tqdm
 from functools import partial
 from multiprocessing import Pool
+from pathlib import Path
 from image_tools.registration.phase_correlation import phase_correlation
 from znamutils import slurm_it
 from iss_preprocess.segment.spots import make_spot_image
-from iss_analysis.io import get_sections_info, get_genes_spots
+from iss_preprocess.io import get_processed_path
 
+from ..io import get_sections_info, get_genes_spots
 from ..segment import get_barcode_in_cells
 from . import ara_registration
 from . import utils
@@ -23,6 +25,8 @@ def register_all_serial_sections(
     gaussian_width: float = 30,
     n_workers: int = 1,
     verbose=True,
+    use_slurm=False,
+    reload=True,
 ):
     """Register all serial sections using phase correlation
 
@@ -40,31 +44,72 @@ def register_all_serial_sections(
         n_workers (int, optional): Number of workers for parallel processing.
             Defaults to 1.
         verbose (bool, optional): Print progress. Defaults to True.
+        use_slurm (bool, optional): Use slurm for parallel processing. Defaults to
+            False.
+        reload (bool, optional): Reload registration results data. Defaults to True.
 
     Returns:
-        dict: Results for all sections
+        dict: Results dataframe with "shift_y", "shift_z", "maxcorr", and "n_barcodes"
+            columns for previous and next sections
     """
     section_infos = get_sections_info(project, mouse)
     output = {}
+    analysis_folder = get_processed_path(f"{project}") / mouse / "analysis"
+    save_folder = analysis_folder / "serial_section_registration"
+    save_folder.mkdir(exist_ok=True)
+    if use_slurm:
+        slurm_folder = Path.home() / "slurm_logs" / "serial_section_registration"
+        slurm_folder.mkdir(exist_ok=True)
+    else:
+        slurm_folder = None
+    redo = True
+    if verbose and reload:
+        print(f"Trying to reload previous registration results")
     for section, sec_info in section_infos.iterrows():
-        res = register_single_section(
-            project,
-            mouse,
-            error_correction_ds_name,
-            sec_info["chamber"],
-            sec_info["roi"],
-            window_size=window_size,
-            min_spots=min_spots,
-            max_barcode_number=max_barcode_number,
-            gaussian_width=gaussian_width,
-            n_workers=n_workers,
-            verbose=verbose,
-        )
+        if reload:
+            redo = False
+            ref_slice = f"{sec_info['chamber']}_{sec_info['roi']:02d}"
+            surrounding_rois = utils.get_surrounding_slices(
+                project=project,
+                mouse=mouse,
+                ref_chamber=sec_info["chamber"],
+                ref_roi=sec_info["roi"],
+                include_ref=False,
+            )
+            res = {}
+            for sec in surrounding_rois.absolute_section:
+                name = "previous" if sec < sec_info.absolute_section else "next"
+                fname = save_folder / f"{ref_slice}_{name}_registration.csv"
+                if fname.exists():
+                    res[name] = pd.read_csv(fname, index_col=0)
+                else:
+                    redo = True
+        if redo:
+            if verbose:
+                print(f"Registering section {section}")
+            res = register_single_section(
+                project=project,
+                mouse=mouse,
+                ref_chamber=sec_info["chamber"],
+                ref_roi=sec_info["roi"],
+                use_rabies=True,
+                error_correction_ds_name=error_correction_ds_name,
+                window_size=window_size,
+                min_spots=min_spots,
+                max_barcode_number=max_barcode_number,
+                gaussian_width=gaussian_width,
+                n_workers=n_workers,
+                verbose=verbose,
+                save_folder=save_folder,
+                use_slurm=use_slurm,
+                scripts_name=f"register_serial_sections_{section}",
+                slurm_folder=slurm_folder,
+            )
         output[section] = res
     return output
 
 
-@slurm_it(conda_env="iss_preprocess")
+@slurm_it(conda_env="iss-preprocess", slurm_options={"mem": "64GB"})
 def register_single_section(
     project: str,
     mouse: str,
@@ -78,12 +123,13 @@ def register_single_section(
     gaussian_width: float = 30,
     n_workers: int = 1,
     verbose=True,
+    save_folder=None,
 ):
     """Register serial sections using phase correlation
 
     This function will register serial sections to a reference section using phase
-    correlation. It will find the shift between the reference section and the previous
-    and next sections.
+    correlation around each rabies cell. It will find the shift between the reference
+    section and the previous and next sections for each cell.
 
     Args:
         project (str): Project name
@@ -104,9 +150,11 @@ def register_single_section(
         n_workers (int, optional): Number of workers for parallel processing.
             Defaults to 1.
         verbose (bool, optional): Print progress. Defaults to True.
+        save_folder (str, optional): Folder to save results. Defaults to None.
 
     Returns:
-        dict: Results for previous and next sections
+        dict: Results dataframe with "shift_y", "shift_z", "maxcorr", and "n_barcodes"
+            columns for "previous" and "next" sections (if they exist)
 
     """
     # reload the spot data, with the ara coordinates
@@ -177,6 +225,10 @@ def register_single_section(
             debug=False,
         )
         cell_coords = cells_in_ref[["ara_y_rot", "ara_z_rot"]].values
+        bad_cells = np.isnan(cell_coords).any(axis=1)
+        if bad_cells.any():
+            print(f"Found {bad_cells.sum()} cells with NaN coordinates. Skipping them")
+            cell_coords = cell_coords[~bad_cells]
         if n_workers == 1:
             reg_out = list(tqdm(map(reg_one_cell, cell_coords), total=len(cell_coords)))
         else:
@@ -191,11 +243,16 @@ def register_single_section(
                     )
                 )
         res = pd.DataFrame(
-            columns=["shift_y", "shift_z", "maxcorr", "n_barcodes"],
+            columns=["shift_z", "shift_y", "maxcorr", "n_barcodes"],
             data=np.vstack([np.hstack(a) for a in reg_out]),
+            index=cells_in_ref.index,
         )
         res_befaft[name] = res
-
+    if save_folder is not None:
+        save_folder = Path(save_folder)
+        assert save_folder.exists(), f"{save_folder} does not exist"
+        for name, res in res_befaft.items():
+            res.to_csv(save_folder / f"{ref_slice}_{name}_registration.csv")
     return res_befaft
 
 
