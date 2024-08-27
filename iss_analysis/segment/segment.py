@@ -82,11 +82,15 @@ def get_barcode_in_cells(
         print(f"    {chamber}")
         if (valid_chambers is not None) and (chamber not in valid_chambers):
             continue
-        rabies_mask_dss = flz.get_datasets(
-            origin_name=f"{mouse}_{chamber}",
-            flexilims_session=flm_sess,
-            dataset_type="barcodes_mask_assignment",
-        )
+        try:
+            rabies_mask_dss = flz.get_datasets(
+                origin_name=f"{mouse}_{chamber}",
+                flexilims_session=flm_sess,
+                dataset_type="barcodes_mask_assignment",
+            )
+        except flz.FlexilimsError:
+            print(f"No mask assignment found for {chamber}")
+            continue
         roi_dim = issp.io.get_roi_dimensions(data_path)
         for roi in roi_dim[:, 0]:
             # find the one that matches the roi
@@ -202,7 +206,6 @@ def match_starter_to_barcodes(
     rabies_cell_properties,
     rab_spot_df,
     mcherry_cells=None,
-    redo=False,
     verbose=True,
     max_starter_distance=10,
     min_spot_number=5,
@@ -215,7 +218,6 @@ def match_starter_to_barcodes(
         rabies_cell_properties (pd.DataFrame): The rabies cell properties.
         rab_spot_df (pd.DataFrame): The rabies spots.
         starters (pd.DataFrame, optional): The starter cells. Defaults to None.
-        redo (bool, optional): Redo the matching. Defaults to False.
         verbose (bool, optional): Print progress. Defaults to True.
         max_starter_distance (int, optional): The radius around starter cell to look for
             spots, in um. Defaults to 10.
@@ -224,6 +226,7 @@ def match_starter_to_barcodes(
 
     Returns:
         pd.DataFrame: The rabies cell properties with starter IDs.
+        pd.DataFrame: The mcherry cell properties with starter IDs.
     """
     manual_click = (
         issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "mcherry_cells"
@@ -233,15 +236,8 @@ def match_starter_to_barcodes(
 
     mcherry_cell_properties = []
     for (ch, roi), mcherry_df in mcherry_cells.groupby(["chamber", "roi"]):
-        # XXX: TEMPORARY FIX
-        if ch != "chamber_07":
-            continue
-        px_size = 0.2
+        px_size = issp.io.get_pixel_size(f"{project}/{mouse}/{ch}")
         max_distance = max_starter_distance / px_size
-        if False:
-            px_size = issp.io.get_pixel_size(f"{project}/{mouse}/{ch}")
-            max_distance = max_starter_distance / px_size
-        # XXX: TEMPORARY FIX end
 
         if verbose:
             print(f"Finding starter cell for {ch} {roi}")
