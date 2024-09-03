@@ -1,8 +1,19 @@
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from scipy.interpolate import LinearNDInterpolator
+from pathlib import Path
+from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.linalg import lstsq
+from skimage.transform import resize
+import bg_atlasapi as bga
+
+from znamutils import slurm_it
+from iss_preprocess.io.save import write_stack
+from iss_preprocess.io.load import get_processed_path
+from iss_preprocess.pipeline.ara_registration import (
+    load_coordinate_image,
+    make_area_image,
+)
+from iss_preprocess.pipeline.stitch import stitch_registered
 
 from . import utils
 
@@ -266,3 +277,116 @@ def _project_points(points, plane_coeffs):
     normal /= np.linalg.norm(normal)
     projected_points = points - distance[:, np.newaxis] * normal
     return projected_points
+
+
+@slurm_it(conda_env="iss-preprocess")
+def transform_stack_to_ara(
+    project,
+    mouse,
+    chamber,
+    roi,
+    prefix,
+    channels,
+    error_correction_ds_name,
+    output_px_size,
+    interpolate=True,
+    output_folder=None,
+):
+    """Transform the registered stack to ARA coordinates.
+
+    Will load the registered stack, the ARA coordinates and the rabies spots to find the
+    main plane of the data. Then will rotate the ARA coordinates to the slice orientation
+    and transform the stack to the ARA coordinates.
+
+    Args:
+        project (str): Project name
+        mouse (str): Mouse name
+        chamber (str): Chamber name
+        roi (int): ROI number
+        prefix (str): Prefix of the registered stack (e.g. "mCherry_1")
+        channels (list): List of channels to use
+        error_correction_ds_name (str): Name of the error correction dataset to load
+            rabies spots and find the main ara plane
+        output_px_size (int, optional): Output pixel size in um. Should be higher than
+            that used for the registration. Defaults to 10.
+        interpolate (bool, optional): If True, will interpolate the stack to the new
+            coordinates, otherwise will use closest pixel. Defaults to True.
+        output_folder (str, optional): Folder to save the rotated stack. If None, will
+            not save the stack. Defaults to None.
+
+    Returns:
+        np.ndarray: Rotated stack
+    """
+    print(f"Transforming stack to ARA coordinates for {mouse}/{chamber}/{roi}")
+    data_path = get_processed_path(f"{project}/{mouse}/{chamber}")
+    print("    ... stitching")
+    full_stack = stitch_registered(
+        data_path,
+        prefix=prefix,
+        roi=roi,
+        channels=channels,
+    )
+    ara_coords = load_coordinate_image(data_path, roi, full_scale=False)
+    # downsample stack to ara coordinates shape
+    stack = np.empty((ara_coords.shape[0], ara_coords.shape[1], full_stack.shape[-1]))
+    for i in range(full_stack.shape[-1]):
+        stack[..., i] = resize(full_stack[..., i], ara_coords.shape[:2])
+    del full_stack
+
+    # find the main ara plane of the data using rabies spots
+    ara_info_folder = (
+        get_processed_path(f"{project}/{mouse}") / "analysis" / "ara_infos"
+    )
+    target = (
+        ara_info_folder
+        / f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
+    )
+    transform = get_ara_to_slice_rotation_matrix(spot_df=pd.read_pickle(target))
+
+    # rotate the ara coordinates
+    ara_coords_rot = ara_coords.reshape(-1, 3) @ transform
+    ara_coords_rot = ara_coords_rot.reshape(ara_coords.shape)
+    # the new ara coordinates are in mm, and are AP, DV, ML, with AP being hopefully
+    # constant.
+
+    # transform the stack to ara coordinates
+    shapes = np.vstack([stack.shape[:2], ara_coords_rot.shape[:2]])
+    if np.any(np.diff(shapes, axis=0)):
+        raise ValueError("Stack and ara_coords_rot must have the same shape")
+
+    # load the atlas
+    atlas_name = "allen_mouse_10um"
+    bg_atlas = bga.bg_atlas.BrainGlobeAtlas(atlas_name)
+    # and find the limits of the ARA space
+    ara_shape_mm = np.array(bg_atlas.shape_um) / 1000
+    ara_shape_mm_rot = ara_shape_mm @ transform
+
+    # height is DV, width is ML
+    height, width = ara_shape_mm_rot[[1, 2]]
+    w_px, h_px = (
+        np.round(np.array([width, height]) * 1000 / output_px_size).astype(int) + 1
+    )
+    rotated_stack = np.zeros((h_px, w_px, 2))
+    target_px = np.round(ara_coords_rot * 1000 / output_px_size).astype(int)
+    target_px = target_px[..., [1, 2]]
+    for i in range(2):
+        target_px[..., i] = np.clip(target_px[..., i], 0, rotated_stack.shape[i] - 1)
+    if interpolate:
+        print("    ... interpolating")
+        for axis in range(stack.shape[-1]):
+            interp = NearestNDInterpolator(
+                target_px.reshape((-1, 2)), stack[..., axis].ravel()
+            )
+            grid = np.meshgrid(np.arange(h_px), np.arange(w_px), indexing="ij")
+            rotated_stack[..., axis] = interp(*grid)
+    else:
+        rotated_stack[target_px[..., 0], target_px[..., 1], :] = stack
+
+    if output_folder is not None:
+        output_folder = Path(output_folder)
+        output_folder.mkdir(exist_ok=True, parents=True)
+        target = output_folder / f"{prefix}_{chamber}_{roi}_rotated_stack.tif"
+        write_stack(rotated_stack, target)
+        print(f"Saved rotated stack to {target}")
+
+    return rotated_stack
