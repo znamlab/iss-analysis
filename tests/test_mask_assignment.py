@@ -11,7 +11,7 @@ def test_assign_barcodes_to_masks():
         index=[10, 11, 12], data=dict(x=[0, 0, 0], y=[0, 0, 0], bases=["A", "A", "A"])
     )
     masks = pd.DataFrame(index=[7, 10, 3], data=dict(x=[0, 10, 100], y=[0, 0, 0]))
-    params = dict(
+    parameters = dict(
         p=0.9,
         m=0.1,
         background_spot_prior=0.0001,
@@ -21,15 +21,26 @@ def test_assign_barcodes_to_masks():
         inter_spot_distance_threshold=50,
         max_spot_group_size=5,
         max_total_combinations=1e6,
+    )
+
+    assignment = pa.assign_barcodes_to_masks(
+        spots,
+        masks,
+        parameters=parameters,
         verbose=0,
         base_column="bases",
     )
-    assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
     assert np.all(assignment == 7)
     assert np.all(assignment.index == spots.index)
-    params["p"] = 0.8
-    params["m"] = 0.08
-    assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
+    parameters["p"] = 0.8
+    parameters["m"] = 0.08
+    assignment = pa.assign_barcodes_to_masks(
+        spots,
+        masks,
+        parameters=parameters,
+        verbose=0,
+        base_column="bases",
+    )
     assert np.all(assignment == -1)
     assert np.all(assignment.index == spots.index)
 
@@ -54,8 +65,14 @@ def test_assign_barcodes_to_masks():
         expected.extend([(i + 9) * 70 + 1] * (i))
 
     for nw in [1, 5]:
-        params["n_workers"] = nw
-        assignment = pa.assign_barcodes_to_masks(spots, masks, **params)
+        assignment = pa.assign_barcodes_to_masks(
+            spots,
+            masks,
+            parameters=parameters,
+            verbose=0,
+            base_column="bases",
+            n_workers=nw,
+        )
         assert np.all(assignment.index == spots.index)
         assert np.all(assignment == expected)
 
@@ -469,9 +486,9 @@ def create_data():
 
 
 if __name__ == "__main__":
+    test_assign_barcodes_to_masks()
+    test_assign_single_barcode_all_to_background()
     test_assign_single_round()
     test_likelihood_change_move_combination()
     test_valid_spot_combination()
     test_likelihood_change_background_combination()
-    test_assign_barcodes_to_masks()
-    test_assign_single_barcode_all_to_background()
