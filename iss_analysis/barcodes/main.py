@@ -23,11 +23,12 @@ def _log(msg, verbose):
 def error_correct_acquisition(
     project,
     mouse_name,
-    n_components=2,
-    valid_components=None,
     mean_intensity_threshold=0.01,
     dot_product_score_threshold=0.2,
     mean_score_threshold=0.75,
+    use_gmm=True,
+    n_components=2,
+    valid_components=None,
     max_edit_distance=2,
     weights=None,
     minimum_match=None,
@@ -40,16 +41,17 @@ def error_correct_acquisition(
     Args:
         project (str): The name of the project on flexilims.
         mouse_name (str): The name of the mouse.
-        n_components (int, optional): The number of clusters for the Gaussian Mixture
-            Model. Default is 2.
-        valid_components (list, optional): The list of valid components. If None, keep
-            only the last. Default is None.
         mean_intensity_threshold (float, optional): The threshold for mean intensity.
             Default is 0.01.
         dot_product_score_threshold (float, optional): The threshold for dot product
             score. Default is 0.2.
         mean_score_threshold (float, optional): The threshold for mean score. Default is
             0.75.
+        use_gmm (bool, optional): Whether to use GMM for clustering. Default is True.
+        n_components (int, optional): The number of clusters for the Gaussian Mixture
+            Model. Default is 2.
+        valid_components (list, optional): The list of valid components for the GMM. If
+            None, keep only the last. Default is None.
         max_edit_distance (int, optional): The maximum edit distance for the sequences.
             Default is 2.
         weights (numpy.ndarray, optional): Weights for the sequences. Default is None.
@@ -71,6 +73,7 @@ def error_correct_acquisition(
             mean_intensity_threshold=mean_intensity_threshold,
             dot_product_score_threshold=dot_product_score_threshold,
             mean_score_threshold=mean_score_threshold,
+            use_gmm=use_gmm,
         ),
         correct_barcode_sequences=dict(
             max_edit_distance=max_edit_distance,
@@ -96,9 +99,10 @@ def error_correct_acquisition(
         return pd.read_pickle(err_corr_ds.path_full)
     print(f"Error correcting barcode sequences for {project}/{mouse_name}")
     err_corr_ds.extra_attributes["started"] = str(pd.Timestamp.now())
+    err_corr_ds.update_flexilims(mode="overwrite")
     slurm_folder = Path.home() / "slurm_logs" / project / mouse_name
     scripts_name = err_corr_ds.dataset_name
-
+    assert err_corr_ds.id is not None
     corrected_spots = run_error_correction(
         dataset_id=err_corr_ds.id,
         project=project,

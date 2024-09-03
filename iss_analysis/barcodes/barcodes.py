@@ -13,11 +13,12 @@ from ..io import get_chamber_datapath
 
 def get_barcodes(
     acquisition_folder,
-    n_components=2,
-    valid_components=None,
     mean_intensity_threshold=0.01,
     dot_product_score_threshold=0.2,
     mean_score_threshold=0.75,
+    use_gmm=True,
+    n_components=2,
+    valid_components=None,
 ):
     """
     Get barcode spots from the given data path.
@@ -25,15 +26,16 @@ def get_barcodes(
     Args:
         acquisiton_folder (str): The relative path to the data, either a single chamber
             or a mouse folder
-        n_components (int): The number of clusters for the Gaussian Mixture Model.
-            Default is 2.
-        valid_components (list): The list of valid components. If None, keep only
-            the last. Default is None.
         mean_intensity_threshold (float): The threshold for mean intensity. Default is
             0.01.
         dot_product_score_threshold (float): The threshold for dot product score.
             Default is 0.2.
         mean_score_threshold (float): The threshold for mean score. Default is 0.75.
+        use_gmm (bool): Whether to use a Gaussian Mixture Model to filter the spots.
+            Default is True.
+        n_components (int): The number of components for the Gaussian Mixture Model.
+            Default is 2.
+        valid_components (list): The components to keep. Default is None.
 
     Returns:
         barcode_spots (pd.DataFrame): DataFrame containing the barcode spots.
@@ -66,8 +68,10 @@ def get_barcodes(
         & (all_barcode_spots.mean_score > mean_score_threshold)
     ].copy()
 
+    if not use_gmm:
+        return all_barcode_spots, None, all_barcode_spots
+
     # Do a GMM on the 4 metrics dot_product_score, spot_score, mean_intensity, mean_score,
-    # with just 2 clusters
     # Extract the four metrics from the dataframe
     metrics = ["dot_product_score", "spot_score", "mean_intensity", "mean_score"]
     skip = len(all_barcode_spots) // 10000
