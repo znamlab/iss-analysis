@@ -29,6 +29,12 @@ def get_chamber_datapath(acquisition_folder, chamber_list=None):
         chambers = [chamber for chamber in chambers if chamber.is_dir()]
         if chamber_list is not None:
             chambers = [chamber for chamber in chambers if chamber.name in chamber_list]
+        # keep only if there are spots in the folder
+        all_chambers = tuple(chambers)
+        for chamber in all_chambers:
+            if not len(list(chamber.glob("*spots*.pkl"))):
+                print(f"No spots in {chamber}, removing from list")
+                chambers.remove(chamber)
         # make the path relative to project, like acquisition_folder
         root = str(main_folder)[: -len(acquisition_folder)]
         chambers = [str(chamber.relative_to(root)) for chamber in chambers]
