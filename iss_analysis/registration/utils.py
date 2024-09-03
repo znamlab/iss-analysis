@@ -9,6 +9,7 @@ def get_surrounding_slices(
     mouse=None,
     section_infos=None,
     include_ref=False,
+    window=(-1, 1),
 ):
     """Returns info about the slices above and below the reference slice
 
@@ -23,6 +24,8 @@ def get_surrounding_slices(
             required if project and mouse are None. Defaults to None.
         include_ref (bool, optional): If True, will include the reference slice in the
             output. Defaults to False.
+        window (tuple, optional): Tuple with the number of slices above and below the
+            reference slice to include. Defaults to (-1, 1).
 
     Returns:
         surrounding_rois (pd.DataFrame): DataFrame with the surrounding slices
@@ -33,8 +36,10 @@ def get_surrounding_slices(
     ref_sec_pos = section_infos.query(
         "chamber == @ref_chamber and roi == @ref_roi"
     ).iloc[0]
+    window = np.array(window)
+    window[-1] += 1  # for the range function
     surrounding_rois = list(
-        range(*np.clip(np.array([-1, 2]) + ref_sec_pos.name, 0, len(section_infos)))
+        range(*np.clip(window + ref_sec_pos.name, 0, len(section_infos)))
     )
     if not include_ref:
         surrounding_rois.remove(ref_sec_pos.name)

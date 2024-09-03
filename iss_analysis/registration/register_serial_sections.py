@@ -75,10 +75,20 @@ def register_all_serial_sections(
                 ref_chamber=sec_info["chamber"],
                 ref_roi=sec_info["roi"],
                 include_ref=False,
+                window=(-1, 2),
             )
             res = {}
             for sec in surrounding_rois.absolute_section:
-                name = "previous" if sec < sec_info.absolute_section else "next"
+                shift = sec - sec_info.absolute_section
+                if shift < 0:
+                    name = "previous"
+                elif shift == 0:
+                    raise ValueError("Should not have the reference slice")
+                elif shift == 1:
+                    name = "next"
+                else:
+                    assert shift == 2, f"Unexpected shift {shift}"
+                    name = f"n_{shift}"
                 fname = save_folder / f"{ref_slice}_{name}_registration.csv"
                 if fname.exists():
                     res[name] = pd.read_csv(fname, index_col=0)
@@ -189,7 +199,7 @@ def register_single_section(
     )
 
     surrounding_rois = utils.get_surrounding_slices(
-        ref_chamber, ref_roi, project, mouse, include_ref=True
+        ref_chamber, ref_roi, project, mouse, include_ref=True, window=(-1, 2)
     )
     # to avoid to always have to groupby chamber and roi, make "slice"
     surrounding_rois["slice"] = (
@@ -208,8 +218,10 @@ def register_single_section(
             continue
         if slice_df.absolute_section < ref_slice_df.absolute_section:
             name = "previous"
-        else:
+        elif slice_df.absolute_section - ref_slice_df.absolute_section == 1:
             name = "next"
+        else:
+            name = f"n_{slice_df.absolute_section - ref_slice_df.absolute_section}"
         if verbose:
             print(f"Registering {name} slice: {slice_df.slice}")
         reg_one_cell = partial(
@@ -226,6 +238,7 @@ def register_single_section(
         )
         cell_coords = cells_in_ref[["ara_y_rot", "ara_z_rot"]].values
         bad_cells = np.isnan(cell_coords).any(axis=1)
+        cells_in_ref = cells_in_ref[~bad_cells].copy()
         if bad_cells.any():
             print(f"Found {bad_cells.sum()} cells with NaN coordinates. Skipping them")
             cell_coords = cell_coords[~bad_cells]
