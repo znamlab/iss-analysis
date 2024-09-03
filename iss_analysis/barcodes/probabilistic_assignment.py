@@ -15,27 +15,21 @@ EPSILON = 1e-6  # small number that is considered zero
 def assign_barcodes_to_masks(
     spots,
     masks,
-    p=0.9,
-    m=0.1,
-    background_spot_prior=0.0001,
-    spot_distribution_sigma=50,
-    max_iterations=100,
-    max_distance_to_mask=200,
-    inter_spot_distance_threshold=50,
-    max_spot_group_size=5,
-    max_total_combinations=1e6,
+    method="spot_by_spot",
+    parameters=None,
     verbose=1,
     base_column="bases",
     n_workers=1,
-    run_by_groupsize=False,
 ):
     """Assign barcodes to masks using a probabilistic model.
 
     Args:
         spots (pd.DataFrame): DataFrame with the spots. Must contain the columns 'x',
             'y', and `base_column`.
-        mask_centres (pd.DataFrame): DataFrame with the mask centres. Must contain the
-            columns 'x' and 'y'.
+        mask (pd.DataFrame): DataFrame with the mask centres. Must contain the columns
+            'x' and 'y'.
+        method (str): Method to use for the assignment. Options are 'variational_gmm'
+            and 'spot_by_spot'. Default is 'variational_gmm'.
         p (float): Power of the spot count prior. Default is 0.9.
         m (float): Length scale of the spot count prior. Default is 0.1.
         background_spot_prior (float): Prior for the background spots. Default is 0.0001
@@ -54,15 +48,19 @@ def assign_barcodes_to_masks(
         base_column (str): Name of the column with the bases. Default is 'bases'.
         n_workers (int): Number of workers to use. 1 = no parallel processing Default is
             1.
-        run_by_groupsize (bool): Whether to run the assignment by group size. This will
-            first iteraton on combination of `max_total_combinations` spots only, then
-            `max_total_combinations - 1` spots etc... Faster but might not be optimal.
-            Default False.
 
     Returns:
         np.ndarray: 1D array with the mask assignment if debug is False. Otherwise 2D
             array with the mask assignment for each iteration.
     """
+    if method == "variational_gmm":
+        func = assign_single_barcode_variational_gmm
+    elif method == "spot_by_spot":
+        func = assign_single_barcode
+    else:
+        raise ValueError("Method must be 'variational_gmm' or 'spot_by_spot'")
+    if parameters is None or parameters == []:
+        parameters = dict()
     if not spots.index.is_unique:
         raise ValueError("Index of spots must be unique")
     if not masks.index.is_unique:
@@ -77,22 +75,12 @@ def assign_barcodes_to_masks(
         spots.loc[spots[base_column].astype(str) == barcode, ["x", "y"]].values
         for barcode in barcodes
     ]
+    parameters.update(dict(verbose=max(0, verbose - 1)))
 
     _assign_by_barcode = partial(
-        assign_single_barcode,
+        func,
         mask_positions=mask_centers,
-        max_distance_to_mask=max_distance_to_mask,
-        inter_spot_distance_threshold=inter_spot_distance_threshold,
-        background_spot_prior=background_spot_prior,
-        p=p,
-        m=m,
-        spot_distribution_sigma=spot_distribution_sigma,
-        max_iterations=max_iterations,
-        verbose=max(0, verbose - 1),
-        debug=False,
-        max_spot_group_size=max_spot_group_size,
-        max_total_combinations=max_total_combinations,
-        run_by_groupsize=run_by_groupsize,
+        **parameters,
     )
     chunk_size = max(1, len(barcodes) // 10 // n_workers)
     if n_workers > 1:
@@ -113,9 +101,9 @@ def assign_barcodes_to_masks(
         )
     assignments_id = pd.Series(index=spots.index, data=-2, dtype=int)
     for i_bar, barcode in enumerate(barcodes):
-        assignments_id.loc[spots[base_column].astype(str) == barcode] = (
-            assignment_by_bc[i_bar]
-        )
+        assignments_id.loc[
+            spots[base_column].astype(str) == barcode
+        ] = assignment_by_bc[i_bar]
 
     # convert assignment index to actual mask value
     assignments = pd.Series(
@@ -131,7 +119,7 @@ def assign_barcodes_to_masks(
 
 def assign_single_barcode_variational_gmm(
     spot_positions,
-    cell_positions,
+    mask_positions,
     alpha_background=None,
     alpha_cells=0.15,
     log_background_density=-11,
@@ -139,44 +127,60 @@ def assign_single_barcode_variational_gmm(
     tol=1e-4,
     sigma=50,
     max_distance_to_mask=300,
+    verbose=True,
 ):
     """
-    Assigns spots to cells using a variational inference algorithm for a Bayesian Gaussian mixture model.
-    The model assumes that the spots are generated from a Gaussian mixture with components centered at
-    the cell positions and a background component with uniform density. The prior over mixing coefficients
-    follows a Direchlet distribution with the specified concentration parameters. The algorithm uses a
-    variational inference algorithm to estimate the posterior distribution of the component assignments.
+    Assigns spots to cells using a variational inference algorithm for a Bayesian
+    Gaussian mixture model.
 
-    The algorithm terminates when the change in the number of spots assigned to the background component is
-    less than the specified tolerance or the maximum number of iterations is reached.
+    The model assumes that the spots are generated from a Gaussian mixture with
+    components centered at the cell positions and a background component with uniform
+    density. The prior over mixing coefficients follows a Direchlet distribution with
+    the specified concentration parameters. The algorithm uses a variational inference
+    algorithm to estimate the posterior distribution of the component assignments.
+
+    The algorithm terminates when the change in the number of spots assigned to the
+    background component is less than the specified tolerance or the maximum number of
+    iterations is reached.
 
     Args:
-        spot_positions (np.ndarray): Array of shape (n_spots, 2) containing the positions of the spots.
-        cell_positions (np.ndarray): Array of shape (n_cells, 2) containing the positions of the cells.
-        alpha_background (float): Concentration parameter of the Direchlet prior on the mixing coefficient for the background component.
-            If None, it is set to the sum of the concentration parameters for the cell components.
-        alpha_cells (float): Concentration parameter of the Direchlet prior on the mixing coefficients for the cell components.
+        spot_positions (np.ndarray): Array of shape (n_spots, 2) containing the
+            positions of the spots.
+        cell_positions (np.ndarray): Array of shape (n_cells, 2) containing the
+            positions of the cells.
+        alpha_background (float): Concentration parameter of the Direchlet prior on the
+            mixing coefficient for the background component. If None, it is set to the
+            sum of the concentration parameters for the cell components.
+        alpha_cells (float): Concentration parameter of the Direchlet prior on the
+            mixing coefficients for the cell components. Default is 0.15.
         log_background_density (float): Log of the density of the background component.
-        max_iter (int): Maximum number of iterations for the variational inference algorithm.
+            Default is -11.
+        max_iter (int): Maximum number of iterations for the variational inference
+            algorithm. Default is 1000.
         tol (float): Tolerance for convergence of the variational inference algorithm.
-        sigma (float): Standard deviation of the Gaussian components.
-        max_distance_to_mask (float): Maximum distance to a mask for a cell to be considered for assignment.
+            Default is 1e-4.
+        sigma (float): Standard deviation of the Gaussian components. Default is 50.
+        max_distance_to_mask (float): Maximum distance to a mask for a cell to be
+            considered for assignment. Default is 300.
+        verbose (bool): Whether to print progress. Default is True.
 
     Returns:
-        np.ndarray: Array of shape (n_spots,) containing the indices of the cells to which the spots are assigned.
+        np.ndarray: Array of shape (n_spots,) containing the indices of the cells to
+            which the spots are assigned.
 
     """
-    # Concentration parameters on the Direchlet prior on mixing coefficients - one value for background and cells
-    num_cells = cell_positions.shape[0]
+    # Concentration parameters on the Direchlet prior on mixing coefficients - one value
+    # for background and cells
+    num_cells = mask_positions.shape[0]
     mean_spot_position = spot_positions.mean(axis=0)
     precision_cells = 1 / sigma**2
     precisions = np.concatenate(([1], np.ones(num_cells) * precision_cells))
-    mus = np.concatenate(([mean_spot_position], cell_positions))
+    mus = np.concatenate(([mean_spot_position], mask_positions))
     distances = np.linalg.norm(spot_positions[:, None] - mus[None], axis=2)
     idx = distances.min(axis=0) < max_distance_to_mask
     idx[0] = True  # always keep the background
     alpha_cells = np.ones(np.sum(idx) - 1) * alpha_cells
-    if alpha_background is None:
+    if alpha_background is None or (alpha_background == []):
         alpha_background = np.sum(alpha_cells)
     alpha_0 = np.concatenate(([alpha_background], alpha_cells))
     distances = distances[:, idx]
@@ -199,7 +203,8 @@ def assign_single_barcode_variational_gmm(
             break
     assignment = rs.argmax(axis=1)
     cells_used = np.nonzero(idx)[0]
-    return cells_used[assignment]
+    # Put the background to -1
+    return cells_used[assignment] - 1
 
 
 def assign_single_barcode(
@@ -267,7 +272,8 @@ def assign_single_barcode(
     distances = distances[:, putative_targets]
     mask_positions = mask_positions[putative_targets]
     log_dist_likelihood = (-0.5 * (distances / spot_distribution_sigma) ** 2).ravel()
-    if mask_assignments is None:
+    # going via flexilims will replace None by []
+    if mask_assignments is None or (not len(mask_assignments)):
         mask_assignments = np.argmin(distances, axis=1)
     else:
         # need to adapt mask assignment to putative targets
@@ -360,7 +366,9 @@ def assign_single_barcode(
             all_assignments.append(new_assignments.copy())
     if debug:
         return np.vstack(all_assignments)
+
     # we looked only at subset of targets, so we need to put the results back
+
     target_ids = np.where(putative_targets)[0]
     assignments = new_assignments.copy()
     nbg = assignments >= 0

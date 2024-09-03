@@ -9,8 +9,13 @@ from znamutils import slurm_it
 import iss_preprocess as issp
 
 from .barcodes import get_barcodes, correct_barcode_sequences
-from .probabilistic_assignment import assign_barcodes_to_masks
+from .probabilistic_assignment import (
+    assign_barcodes_to_masks,
+    assign_single_barcode_variational_gmm,
+    assign_single_barcode,
+)
 from ..io import get_chamber_datapath
+from ..utils import get_default_args
 from iss_preprocess.segment.cells import get_cell_masks
 
 
@@ -172,21 +177,13 @@ def assign_barcode_all_chambers(
     project,
     mouse_name,
     error_correction_ds_name=None,
-    p=0.9,
-    m=0.1,
-    background_spot_prior=0.0001,
-    spot_distribution_sigma=50,
-    max_iterations=100,
-    max_distance_to_mask=600,
-    inter_spot_distance_threshold=20,
-    max_spot_group_size=6,
-    max_total_combinations=10000,
+    method="spot_by_spot",
+    parameters=None,
     base_column="corrected_bases",
     verbose=True,
     conflicts="abort",
     use_slurm=True,
     n_workers=1,
-    run_by_groupsize=True,
 ):
     """Assign barcodes to masks for all chambers.
 
@@ -195,14 +192,10 @@ def assign_barcode_all_chambers(
         mouse_name (str): The name of the mouse.
         error_correction_ds_name (str, optional): The name of the error corrected barcode
             sequences dataset. Defaults: None.
-        p (float): Power of the spot count prior. Default: 0.9.
-        m (float): Length scale of the spot count prior. Default: 0.1.
-        background_spot_prior (float): Prior for the background spots. Default: 0.0001.
-        spot_distribution_sigma (float): Sigma for the spot distribution in pixels.
-            Default: 20.
-        max_iterations (int): Maximum number of iterations. Default: 100.
-        distance_threshold (float): Threshold for the distance in pixels between spots
-            and masks. Default: 600.
+        method (str, optional): The method for barcode assignment. Defaults:
+            "spot_by_spot".
+        parameters (dict, optional): The parameters for the barcode assignment.
+            Defaults: None.
         base_column (str, optional): The column name for the corrected bases. Defaults:
             "corrected_bases".
         verbose (bool, optional): Whether to print verbose output. Defaults to True.
@@ -221,21 +214,29 @@ def assign_barcode_all_chambers(
 
     print(f"Started assigning barcodes to masks for {project}/{mouse_name}")
     flm_sess = flz.get_flexilims_session(project_id=project)
+
+    # Make explicit the parameters that will be used.
+    if method == "spot_by_spot":
+        func = assign_single_barcode
+    elif method == "variational_gmm":
+        func = assign_single_barcode_variational_gmm
+    else:
+        raise ValueError(
+            f"Method {method} not recognized. Must be 'spot_by_spot' or "
+            + "'variational_gmm'."
+        )
+    defaults = get_default_args(func)
+    # Update with the provided parameters.
+    if parameters is not None:
+        defaults.update(parameters)
+
     attributes = dict(
         error_correction_ds_name=error_correction_ds_name,
-        p=p,
-        m=m,
-        background_spot_prior=background_spot_prior,
-        spot_distribution_sigma=spot_distribution_sigma,
-        max_iterations=max_iterations,
-        max_distance_to_mask=max_distance_to_mask,
-        inter_spot_distance_threshold=inter_spot_distance_threshold,
-        max_spot_group_size=max_spot_group_size,
-        max_total_combinations=max_total_combinations,
+        parameters=defaults,
+        method=method,
         base_column=base_column,
         verbose=verbose,
         n_workers=n_workers,
-        run_by_groupsize=run_by_groupsize,
     )
 
     # compile the list of chamber/rois to run
@@ -322,38 +323,22 @@ def run_mask_assignment(
     roi,
     assigned_datasets_name,
     error_correction_ds_name,
-    p,
-    m,
-    background_spot_prior,
-    spot_distribution_sigma,
-    max_iterations,
-    max_distance_to_mask,
-    inter_spot_distance_threshold,
-    max_spot_group_size,
-    max_total_combinations,
+    method,
+    parameters,
     base_column,
     verbose=True,
     n_workers=1,
-    run_by_groupsize=True,
 ):
     _log(
         f"Assigning barcodes to masks for {project}/{mouse_name}/{chamber}/{roi}",
         verbose,
     )
     params = dict(
-        p=p,
-        m=m,
-        background_spot_prior=background_spot_prior,
-        spot_distribution_sigma=spot_distribution_sigma,
-        max_iterations=max_iterations,
-        max_distance_to_mask=max_distance_to_mask,
-        inter_spot_distance_threshold=inter_spot_distance_threshold,
-        max_spot_group_size=max_spot_group_size,
-        max_total_combinations=max_total_combinations,
+        method=method,
+        parameters=parameters,
         verbose=verbose,
         base_column=base_column,
         n_workers=n_workers,
-        run_by_groupsize=run_by_groupsize,
     )
     flm_sess = flz.get_flexilims_session(project_id=project)
     error_dataset = flz.Dataset.from_flexilims(
