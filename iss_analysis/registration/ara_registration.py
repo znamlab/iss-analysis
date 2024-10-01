@@ -346,7 +346,7 @@ def transform_stack_to_ara(
     # rotate the ara coordinates
     ara_coords_rot = ara_coords.reshape(-1, 3) @ transform
     ara_coords_rot = ara_coords_rot.reshape(ara_coords.shape)
-    # the new ara coordinates are in mm, and are AP, DV, ML, with AP being hopefully
+    # the new ara coordinates are in mm, and are ~AP, ~DV, ~ML, with AP being hopefully
     # constant.
 
     # transform the stack to ara coordinates

@@ -27,6 +27,7 @@ def register_all_serial_sections(
     verbose=True,
     use_slurm=False,
     reload=True,
+    window=(-1, 2),
 ):
     """Register all serial sections using phase correlation
 
@@ -47,6 +48,7 @@ def register_all_serial_sections(
         use_slurm (bool, optional): Use slurm for parallel processing. Defaults to
             False.
         reload (bool, optional): Reload registration results data. Defaults to True.
+        window (tuple, optional): Window around the reference slice to consider.
 
     Returns:
         dict: Results dataframe with "shift_y", "shift_z", "maxcorr", and "n_barcodes"
@@ -75,7 +77,7 @@ def register_all_serial_sections(
                 ref_chamber=sec_info["chamber"],
                 ref_roi=sec_info["roi"],
                 include_ref=False,
-                window=(-1, 2),
+                window=window,
             )
             res = {}
             for sec in surrounding_rois.absolute_section:
