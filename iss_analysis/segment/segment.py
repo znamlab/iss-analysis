@@ -7,7 +7,7 @@ import iss_analysis as issa
 import flexiznam as flz
 from znamutils import slurm_it
 
-from iss_preprocess.segment.cells import get_cell_masks
+from iss_preprocess.pipeline.segment import get_cell_masks
 
 
 def get_barcode_in_cells(
@@ -437,7 +437,7 @@ def save_stitched_for_manual_clicking(
                 roi=roi,
                 channels=channels[k],
             )
-            imwrite(fname, img)
+            issp.io.write_stack(stack=img, fname=fname, bigtiff=True)
             del img
 
     # get spots
@@ -457,20 +457,22 @@ def save_stitched_for_manual_clicking(
             pts.to_pickle(fname)
             print(f"Saved {fname}")
 
-    if False:
+    if True:
         # save mcherry centers as npy
         print("Finding mCherry centers")
-        mCherry_masks = issp.pipeline.stitch_registered(
+        mCherry_masks = get_cell_masks(
             data_path,
-            prefix=f"mCherry_1_masks",
             roi=roi,
+            prefix=f"mCherry_1",
             projection="corrected",
-        )[..., 0]
-        imwrite(
-            destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif", mCherry_masks
+        )
+        issp.io.write_stack(
+            stack=mCherry_masks,
+            fname=destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif",
+            bigtiff=True,
         )
         mCherry_centers = issp.pipeline.segment.make_cell_dataframe(
-            data_path, roi, masks=mCherry_masks, mask_expansion=0, atlas_size=None
+            data_path, roi, masks=mCherry_masks, mask_expansion=None, atlas_size=None
         )
         pts = mCherry_centers[["x", "y"]].values
         np.save(destination / f"{mouse}_{chamber}_{roi}_mCherry_centers.npy", pts)
@@ -503,14 +505,17 @@ def save_stitched_for_manual_clicking(
     err_corr["cell_mask"] = rabies_assignment["mask"]
     # keep only the relevant roi
     rabies_assignment = err_corr[(err_corr.chamber == chamber) & (err_corr.roi == roi)]
-    fname = destination / f"{mouse}_{chamber}_{roi}_rabies_cells_mask.tif"
+    fname = destination / f"{mouse}_{chamber}_{roi}_rabies_cells_masks.tif"
     if fname.exists() and not redo:
         print(f"File {fname} already exists, skipping")
     else:
         cell_masks = get_cell_masks(data_path, roi=roi)
-        imwrite(
-            fname.with_name(f"{mouse}_{chamber}_{roi}_all_cells_mask.tif"), cell_masks
+        issp.io.write_stack(
+            stack=cell_masks,
+            fname=fname.with_name(f"{mouse}_{chamber}_{roi}_all_cells_mask.tif"),
+            bigtiff=True,
         )
+
         valid_masks = rabies_assignment[
             rabies_assignment["cell_mask"] != -1
         ].cell_mask.unique()
@@ -518,7 +523,7 @@ def save_stitched_for_manual_clicking(
         rabies_cells = np.zeros_like(cell_masks)
         for mask in valid_masks:
             rabies_cells[cell_masks == mask] = mask
-        imwrite(fname, rabies_cells)
+        issp.io.write_stack(stack=rabies_cells, fname=fname, bigtiff=True)
 
     # save spots that are assigned to a cell, with the cell mask and barcode
     fname = destination / f"{mouse}_{chamber}_{roi}_rabies_spots.npy"
