@@ -14,6 +14,7 @@ from ..io import get_sections_info, get_genes_spots
 from ..segment import get_barcode_in_cells
 from . import ara_registration
 from . import utils
+from ..vis import diagnostics
 
 
 def register_all_serial_sections(
@@ -272,7 +273,16 @@ def register_single_section(
     return res_befaft
 
 
-def interpolate_shifts(project, mouse, ref_slice, target_position, error_correction_ds_name, threshold, smoothing=10, vis=True):
+def interpolate_shifts(
+    project,
+    mouse,
+    ref_slice,
+    target_position,
+    error_correction_ds_name,
+    threshold,
+    smoothing=10,
+    vis=True,
+):
     """Interpolate shifts using RBF interpolation
 
     Args:
@@ -282,7 +292,7 @@ def interpolate_shifts(project, mouse, ref_slice, target_position, error_correct
         target_position (str): Target position name (`previous`, `next` or `n_{n}`)
         error_correction_ds_name (str): Dataset name for error correction
         threshold (float): Maximum distance to consider a shift
-        smoothing (float, optional): Smoothing factor for RBF interpolation. Defaults to 
+        smoothing (float, optional): Smoothing factor for RBF interpolation. Defaults to
             10.
         vis (bool, optional): Plot diagnostics. Defaults to True.
 
@@ -291,7 +301,9 @@ def interpolate_shifts(project, mouse, ref_slice, target_position, error_correct
         RBFInterpolator: Interpolator for y shifts
         RBFInterpolator: Interpolator for z shifts
     """
-    save_folder = get_processed_path(project) / mouse / "analysis" / "serial_section_registration"
+    save_folder = (
+        get_processed_path(project) / mouse / "analysis" / "serial_section_registration"
+    )
     res_file = save_folder / f"{ref_slice}_{target_position}_registration.csv"
     assert res_file.exists(), f"{res_file} does not exist"
     res = pd.read_csv(res_file, index_col=0)
@@ -314,7 +326,9 @@ def interpolate_shifts(project, mouse, ref_slice, target_position, error_correct
     )
 
     # add rotated ara coordinates
-    transform = ara_registration.get_ara_to_slice_rotation_matrix(spot_df=rab_spot_df, verbose=False)
+    transform = ara_registration.get_ara_to_slice_rotation_matrix(
+        spot_df=rab_spot_df, verbose=False
+    )
     rabies_cell_properties = ara_registration.rotate_ara_coordinate_to_slice(
         rabies_cell_properties, transform=transform, verbose=False
     )
@@ -329,24 +343,37 @@ def interpolate_shifts(project, mouse, ref_slice, target_position, error_correct
     shifts = shifts[valid]
     good_idx = res.index[valid]
     cell_coords = cells_in_ref.loc[good_idx, ["ara_z_rot", "ara_y_rot"]]
-    z_shift_interpolator = RBFInterpolator(cell_coords, shifts[:, 0], smoothing=smoothing)
-    y_shift_interpolator = RBFInterpolator(cell_coords, shifts[:, 1], smoothing=smoothing)
+    z_shift_interpolator = RBFInterpolator(
+        cell_coords, shifts[:, 0], smoothing=smoothing
+    )
+    y_shift_interpolator = RBFInterpolator(
+        cell_coords, shifts[:, 1], smoothing=smoothing
+    )
 
     # Add missing cells in res, these are cells that had NaN in some coords
     missing = cells_in_ref.index.difference(res.index)
     res.loc[missing] = np.nan
 
     all_cell_coords = cells_in_ref[["ara_z_rot", "ara_y_rot"]].values
-    smooth_shifts = np.stack([z_shift_interpolator(all_cell_coords), y_shift_interpolator(all_cell_coords)], axis=1)
+    smooth_shifts = np.stack(
+        [z_shift_interpolator(all_cell_coords), y_shift_interpolator(all_cell_coords)],
+        axis=1,
+    )
     res.loc[cells_in_ref.index, ["smooth_shift_z", "smooth_shift_y"]] = smooth_shifts
     # add also cell coordinates to the res dataframe
     res.loc[cells_in_ref.index, ["ara_z_rot", "ara_y_rot"]] = all_cell_coords
-    print('Saving results')
+    print("Saving results")
     res.to_csv(res_file)
 
+    # Plot diagnostics
+    if vis:
+        fig = diagnostics.plot_shifts_interpolation(res, threshold)
+        fig.suptitle(f"{ref_slice} - {target_position}")
+        fig.savefig(
+            save_folder / f"{ref_slice}_{target_position}_shifts_interpolation.png"
+        )
 
     return res, z_shift_interpolator, y_shift_interpolator
-
 
 
 def register_local_spots(

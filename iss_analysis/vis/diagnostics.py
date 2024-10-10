@@ -136,3 +136,44 @@ def check_serial_registration(
         x.set_yticks([])
     plt.tight_layout()
     return fig
+
+
+def plot_shifts_interpolation(res, threshold):
+    kwargs = dict(
+        cmap="cividis", clim=[0, threshold], angles="xy", scale_units="xy", scale=1000
+    )
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    ampl = np.linalg.norm([res.shift_z, res.shift_y], axis=0)
+    qu = axes[0].quiver(
+        res.ara_z_rot, res.ara_y_rot, res.shift_z, res.shift_y, ampl, **kwargs
+    )
+    axes[0].set_title("Raw shifts")
+    fig.colorbar(qu, ax=axes[0])
+
+    ampl = np.linalg.norm([res.smooth_shift_z, res.smooth_shift_y], axis=0)
+    qu = axes[1].quiver(
+        res.ara_z_rot,
+        res.ara_y_rot,
+        res.smooth_shift_z,
+        res.smooth_shift_y,
+        ampl,
+        **kwargs,
+    )
+    axes[1].set_title("Smooth shifts")
+    fig.colorbar(qu, ax=axes[1])
+
+    res["delta_z"] = res.smooth_shift_z - res.shift_z
+    res["delta_y"] = res.smooth_shift_y - res.shift_y
+    res["delta_ampl"] = np.linalg.norm([res.delta_z, res.delta_y], axis=0)
+    kwargs.update(clim=[0, min(threshold, res.delta_ampl.max())])
+    kwargs.update(cmap="cool")
+
+    qu = axes[2].quiver(
+        res.ara_z_rot, res.ara_y_rot, res.delta_z, res.delta_y, res.delta_ampl, **kwargs
+    )
+    axes[2].set_title("Smooth - Raw shifts")
+    fig.colorbar(qu, ax=axes[2])
+    for ax in axes:
+        ax.set_aspect("equal")
+        ax.invert_yaxis()
+    return fig
