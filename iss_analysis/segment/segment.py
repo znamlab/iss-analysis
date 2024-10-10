@@ -467,23 +467,31 @@ def save_stitched_for_manual_clicking(
     if True:
         # save mcherry centers as npy
         print("Finding mCherry centers")
-        mCherry_masks = get_cell_masks(
-            data_path,
-            roi=roi,
-            prefix=f"mCherry_1",
-            projection="corrected",
-        )
-        issp.io.write_stack(
-            stack=mCherry_masks,
-            fname=destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif",
-            bigtiff=True,
-        )
-        mCherry_centers = issp.pipeline.segment.make_cell_dataframe(
-            data_path, roi, masks=mCherry_masks, mask_expansion=None, atlas_size=None
-        )
-        pts = mCherry_centers[["x", "y"]].values
-        np.save(destination / f"{mouse}_{chamber}_{roi}_mCherry_centers.npy", pts)
-        del mCherry_masks, mCherry_centers
+        fname = destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif"
+        if fname.exists() and not redo:
+            print(f"File {fname} already exists, skipping")
+        else:
+            mCherry_masks = get_cell_masks(
+                data_path,
+                roi=roi,
+                prefix=f"mCherry_1",
+                projection="corrected",
+            )
+            issp.io.write_stack(
+                stack=mCherry_masks,
+                fname=destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif",
+                bigtiff=True,
+            )
+            mCherry_centers = issp.pipeline.segment.make_cell_dataframe(
+                data_path,
+                roi,
+                masks=mCherry_masks,
+                mask_expansion=None,
+                atlas_size=None,
+            )
+            pts = mCherry_centers[["x", "y"]].values
+            np.save(destination / f"{mouse}_{chamber}_{roi}_mCherry_centers.npy", pts)
+            del mCherry_masks, mCherry_centers
 
     # find masks of rabies cells
     print("Finding cells")
