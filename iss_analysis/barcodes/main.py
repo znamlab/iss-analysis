@@ -16,7 +16,7 @@ from .probabilistic_assignment import (
 )
 from ..io import get_chamber_datapath
 from ..utils import get_default_args
-from iss_preprocess.segment.cells import get_cell_masks
+from iss_preprocess.pipeline.segment import get_cell_masks
 
 
 def _log(msg, verbose):
