@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from pathlib import Path
 from image_tools.registration.phase_correlation import phase_correlation
 from znamutils import slurm_it
+from scipy.interpolate import RBFInterpolator
 from iss_preprocess.segment.spots import make_spot_image
 from iss_preprocess.io import get_processed_path
 
@@ -269,6 +270,83 @@ def register_single_section(
         for name, res in res_befaft.items():
             res.to_csv(save_folder / f"{ref_slice}_{name}_registration.csv")
     return res_befaft
+
+
+def interpolate_shifts(project, mouse, ref_slice, target_position, error_correction_ds_name, threshold, smoothing=10, vis=True):
+    """Interpolate shifts using RBF interpolation
+
+    Args:
+        project (str): Project name
+        mouse (str): Mouse name
+        ref_slice (str): Reference slice name (format `{chamber}_{roi:02d}`)
+        target_position (str): Target position name (`previous`, `next` or `n_{n}`)
+        error_correction_ds_name (str): Dataset name for error correction
+        threshold (float): Maximum distance to consider a shift
+        smoothing (float, optional): Smoothing factor for RBF interpolation. Defaults to 
+            10.
+        vis (bool, optional): Plot diagnostics. Defaults to True.
+
+    Returns:
+        np.array: Smoothed shifts
+        RBFInterpolator: Interpolator for y shifts
+        RBFInterpolator: Interpolator for z shifts
+    """
+    save_folder = get_processed_path(project) / mouse / "analysis" / "serial_section_registration"
+    res_file = save_folder / f"{ref_slice}_{target_position}_registration.csv"
+    assert res_file.exists(), f"{res_file} does not exist"
+    res = pd.read_csv(res_file, index_col=0)
+    # find cells in the ref slice
+    ref_roi = int(ref_slice.split("_")[-1])
+    ref_chamber = "_".join(ref_slice.split("_")[:-1])
+
+    (
+        rab_spot_df,
+        _,
+        rabies_cell_properties,
+    ) = get_barcode_in_cells(
+        project,
+        mouse,
+        error_correction_ds_name,
+        valid_chambers=[ref_chamber],
+        save_folder=None,
+        verbose=False,
+        add_ara_properties=True,
+    )
+
+    # add rotated ara coordinates
+    transform = ara_registration.get_ara_to_slice_rotation_matrix(spot_df=rab_spot_df, verbose=False)
+    rabies_cell_properties = ara_registration.rotate_ara_coordinate_to_slice(
+        rabies_cell_properties, transform=transform, verbose=False
+    )
+    cells_in_ref = rabies_cell_properties.query(
+        f"chamber == '{ref_chamber}' and roi == {ref_roi}"
+    )
+
+    # Find cells with valid shifts
+    shifts = res[["shift_z", "shift_y"]].values
+    shift_ampl = np.linalg.norm(shifts, axis=1)
+    valid = shift_ampl < threshold
+    shifts = shifts[valid]
+    good_idx = res.index[valid]
+    cell_coords = cells_in_ref.loc[good_idx, ["ara_z_rot", "ara_y_rot"]]
+    z_shift_interpolator = RBFInterpolator(cell_coords, shifts[:, 0], smoothing=smoothing)
+    y_shift_interpolator = RBFInterpolator(cell_coords, shifts[:, 1], smoothing=smoothing)
+
+    # Add missing cells in res, these are cells that had NaN in some coords
+    missing = cells_in_ref.index.difference(res.index)
+    res.loc[missing] = np.nan
+
+    all_cell_coords = cells_in_ref[["ara_z_rot", "ara_y_rot"]].values
+    smooth_shifts = np.stack([z_shift_interpolator(all_cell_coords), y_shift_interpolator(all_cell_coords)], axis=1)
+    res.loc[cells_in_ref.index, ["smooth_shift_z", "smooth_shift_y"]] = smooth_shifts
+    # add also cell coordinates to the res dataframe
+    res.loc[cells_in_ref.index, ["ara_z_rot", "ara_y_rot"]] = all_cell_coords
+    print('Saving results')
+    res.to_csv(res_file)
+
+
+    return res, z_shift_interpolator, y_shift_interpolator
+
 
 
 def register_local_spots(
