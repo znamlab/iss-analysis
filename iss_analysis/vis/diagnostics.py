@@ -162,8 +162,8 @@ def plot_shifts_interpolation(res, threshold):
     axes[1].set_title("Smooth shifts")
     fig.colorbar(qu, ax=axes[1])
 
-    res["delta_z"] = res.smooth_shift_z - res.shift_z
-    res["delta_y"] = res.smooth_shift_y - res.shift_y
+    res["delta_z"] = res.smooth_shift_z.values - np.nan_to_num(res.shift_z)
+    res["delta_y"] = res.smooth_shift_y.values - np.nan_to_num(res.shift_y)
     res["delta_ampl"] = np.linalg.norm([res.delta_z, res.delta_y], axis=0)
     kwargs.update(clim=[0, min(threshold, res.delta_ampl.max())])
     kwargs.update(cmap="cool")
