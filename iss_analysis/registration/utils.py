@@ -41,7 +41,7 @@ def get_surrounding_slices(
     surrounding_rois = list(
         range(*np.clip(window + ref_sec_pos.name, 0, len(section_infos)))
     )
-    if not include_ref:
+    if (not include_ref) and (ref_sec_pos.name in surrounding_rois):
         surrounding_rois.remove(ref_sec_pos.name)
     surrounding_rois = section_infos.loc[surrounding_rois].copy()
     return surrounding_rois
