@@ -21,7 +21,7 @@ def register_all_serial_sections(
     project: str,
     mouse: str,
     error_correction_ds_name: str,
-    window_size: int = 500,
+    correlation_window_size: int = 500,
     min_spots: int = 10,
     max_barcode_number: int = 50,
     gaussian_width: float = 30,
@@ -29,7 +29,7 @@ def register_all_serial_sections(
     verbose=True,
     use_slurm=False,
     reload=True,
-    window=(-1, 2),
+    slice_window=(-1, 2),
 ):
     """Register all serial sections using phase correlation
 
@@ -37,7 +37,8 @@ def register_all_serial_sections(
         project (str): Project name
         mouse (str): Mouse name
         error_correction_ds_name (str): Dataset name for error correction
-        window_size (int, optional): Window size in um. Defaults to 500.
+        correlation_window_size (int, optional): Window size in um to keep around each
+            cell and look for correlation. Defaults to 500.
         min_spots (int, optional): Minimum number of spots found on each slice to
             consider a barcode. Defaults to 10.
         max_barcode_number (int, optional): Maximum number of barcodes to consider.
@@ -50,7 +51,9 @@ def register_all_serial_sections(
         use_slurm (bool, optional): Use slurm for parallel processing. Defaults to
             False.
         reload (bool, optional): Reload registration results data. Defaults to True.
-        window (tuple, optional): Window around the reference slice to consider.
+        slice_window (tuple, optional): Window around the reference slice to consider.
+            -1 for previous, 3 for 2 slices after etc... Defaults to (-1, 2).
+
 
     Returns:
         dict: Results dataframe with "shift_y", "shift_z", "maxcorr", and "n_barcodes"
@@ -79,7 +82,7 @@ def register_all_serial_sections(
                 ref_chamber=sec_info["chamber"],
                 ref_roi=sec_info["roi"],
                 include_ref=False,
-                window=window,
+                window=slice_window,
             )
             res = {}
             for sec in surrounding_rois.absolute_section:
@@ -108,7 +111,8 @@ def register_all_serial_sections(
                 ref_roi=sec_info["roi"],
                 use_rabies=True,
                 error_correction_ds_name=error_correction_ds_name,
-                window_size=window_size,
+                slice_window=slice_window,
+                correlation_window_size=correlation_window_size,
                 min_spots=min_spots,
                 max_barcode_number=max_barcode_number,
                 gaussian_width=gaussian_width,
@@ -131,7 +135,8 @@ def register_single_section(
     ref_roi: int,
     use_rabies: bool = True,
     error_correction_ds_name: str = None,
-    window_size: int = 500,
+    slice_window=(-1, 2),
+    correlation_window_size: int = 500,
     min_spots: int = 10,
     max_barcode_number: int = 50,
     gaussian_width: float = 30,
@@ -154,7 +159,10 @@ def register_single_section(
             Defaults to True.
         error_correction_ds_name (str): Dataset name for error correction. Must be
             provided if use_rabies is True.
-        window_size (int, optional): Window size in um. Defaults to 500.
+        slice_window (tuple, optional): Window around the reference slice to consider.
+            -1 for previous, 3 for 2 slices after etc... Defaults to (-1, 2).
+        correlation_window_size (int, optional): Window size in um to keep around each
+            cell and look for correlation. Defaults to 500.
         min_spots (int, optional): Minimum number of spots found on each slice to
             consider a barcode. Defaults to 10.
         max_barcode_number (int, optional): Maximum number of barcodes to consider.
@@ -203,7 +211,7 @@ def register_single_section(
     )
 
     surrounding_rois = utils.get_surrounding_slices(
-        ref_chamber, ref_roi, project, mouse, include_ref=True, window=(-1, 2)
+        ref_chamber, ref_roi, project, mouse, include_ref=True, window=slice_window
     )
     # to avoid to always have to groupby chamber and roi, make "slice"
     surrounding_rois["slice"] = (
@@ -233,7 +241,7 @@ def register_single_section(
             spot_df=rab_spot_df,
             ref_slice=ref_slice,
             target_slice=slice_df.slice,
-            window_size=window_size,
+            window_size=correlation_window_size,
             min_spots=min_spots,
             max_barcode_number=max_barcode_number,
             gaussian_width=gaussian_width,
