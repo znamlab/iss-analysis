@@ -18,7 +18,9 @@ from iss_preprocess.pipeline.stitch import stitch_registered
 from . import utils
 
 
-def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
+def get_ara_to_slice_rotation_matrix(
+    spot_df, ref_chamber=None, ref_roi=None, verbose=True
+):
     """Rotate the ARA coordinates to the slice orientation.
 
     The ARA coordinates are in the DV, AP, ML orientation. We want to rotate the AP/ML
@@ -31,6 +33,8 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
             median plane of all chambers in the DataFrame. Defaults to None.
         ref_roi (int, optional): Reference roi number. If None, will use the median
             plane of all rois in the DataFrame. Defaults to None.
+        verbose (bool, optional): If True, will print information about the process.
+            Defaults to True.
 
     Returns:
         np.ndarray: 3x3 Rotation matrix to apply to the ARA coordinates to rotate them
@@ -53,7 +57,8 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
         ara_coords = spots[[f"ara_{i}" for i in "xyz"]].values
         ara_coords = ara_coords[~np.any(np.isnan(ara_coords), axis=1)]
         if not len(ara_coords):
-            print(f"No spots in chamber {chamber}, roi {roi}")
+            if verbose:
+                print(f"No spots in chamber {chamber}, roi {roi}")
             continue
         nspots_to_use = min(len(ara_coords), max_n_spots)
         plane_coeffs = utils.fit_plane_to_points(
@@ -83,7 +88,7 @@ def get_ara_to_slice_rotation_matrix(spot_df, ref_chamber=None, ref_roi=None):
 
 
 def rotate_ara_coordinate_to_slice(
-    spot_df, transform=None, ref_chamber=None, ref_roi=None
+    spot_df, transform=None, ref_chamber=None, ref_roi=None, verbose=True
 ):
     """Rotate the ARA coordinates to the slice orientation.
 
@@ -100,13 +105,15 @@ def rotate_ara_coordinate_to_slice(
             median plane of all chambers in the DataFrame. Defaults to None.
         ref_roi (int, optional): Reference roi number. If None, will use the median
             plane of all rois in the DataFrame. Defaults to None.
+        verbose (bool, optional): If True, will print information about the process.
+            Defaults to True.
 
     Returns:
         pd.DataFrame: DataFrame with the rotated ARA coordinates (ara_`axis`_rot)
     """
     if transform is None:
         transform = get_ara_to_slice_rotation_matrix(
-            spot_df, ref_chamber=ref_chamber, ref_roi=ref_roi
+            spot_df, ref_chamber=ref_chamber, ref_roi=ref_roi, verbose=verbose
         )
 
     ara_coords = spot_df[[f"ara_{i}" for i in "xyz"]].values

@@ -7,7 +7,7 @@ import iss_preprocess as issp
 from iss_preprocess.pipeline.ara_registration import spots_ara_infos
 
 
-def get_chamber_datapath(acquisition_folder, chamber_list=None):
+def get_chamber_datapath(acquisition_folder, chamber_list=None, verbose=False):
     """Get the chamber folders from the acquisition folder.
 
     Simple utility function to get the chamber folders from the acquisition folder or
@@ -16,6 +16,7 @@ def get_chamber_datapath(acquisition_folder, chamber_list=None):
     Args:
         acquisition_folder (str): The path to the acquisition folder.
         chamber_list (list, optional): The list of chambers to include. Default is None.
+        verbose (bool, optional): Print verbose output. Default is False.
 
     Returns:
         list: A list of chamber folders.
@@ -33,7 +34,8 @@ def get_chamber_datapath(acquisition_folder, chamber_list=None):
         all_chambers = tuple(chambers)
         for chamber in all_chambers:
             if not len(list(chamber.glob("*spots*.pkl"))):
-                print(f"No spots in {chamber}, removing from list")
+                if verbose:
+                    print(f"No spots in {chamber}, removing from list")
                 chambers.remove(chamber)
         # make the path relative to project, like acquisition_folder
         root = str(main_folder)[: -len(acquisition_folder)]
