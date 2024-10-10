@@ -73,15 +73,21 @@ def get_barcode_in_cells(
             issp.io.get_processed_path(f"{project}/{mouse}") / "analysis" / "ara_infos"
         )
     # for all chambers, get the mask assignment datasets
-    chambers = issa.io.get_chamber_datapath(f"{project}/{mouse}")
+
+    if valid_chambers is None:
+        chambers = issa.io.get_chamber_datapath(f"{project}/{mouse}")
+    else:
+        if isinstance(valid_chambers, str):
+            valid_chambers = [valid_chambers]
+        chambers = [f"{project}/{mouse}/{ch}" for ch in valid_chambers]
+
     if verbose:
         print(f"Getting mask assignments for {len(chambers)} chambers")
     rab_spot_df["cell_mask"] = np.zeros_like(rab_spot_df.x.values) * np.nan
     for data_path in chambers:
         chamber = issp.io.get_processed_path(data_path).stem
-        print(f"    {chamber}")
-        if (valid_chambers is not None) and (chamber not in valid_chambers):
-            continue
+        if verbose:
+            print(f"    {chamber}")
         try:
             rabies_mask_dss = flz.get_datasets(
                 origin_name=f"{mouse}_{chamber}",
@@ -196,7 +202,8 @@ def get_barcode_in_cells(
             Path(save_folder) / f"barcode_in_cells_{chamber}_{roi}.pkl"
         )
         print(f"Saved to {save_folder}")
-    print("Done")
+    if verbose:
+        print("Done")
     return rab_spot_df, rab_cells_barcodes, rab_cells_properties
 
 
