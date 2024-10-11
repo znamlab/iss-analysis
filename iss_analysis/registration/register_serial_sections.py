@@ -26,10 +26,12 @@ def register_all_serial_sections(
     max_barcode_number: int = 50,
     gaussian_width: float = 30,
     n_workers: int = 1,
-    verbose=True,
-    use_slurm=False,
-    reload=True,
-    slice_window=(-1, 2),
+    verbose: bool = True,
+    use_slurm: bool = False,
+    reload: bool = True,
+    slice_window: tuple = (-1, 2),
+    max_shift_for_interpolation: float = 400,
+    interpolation_smoothing: float = 10,
 ):
     """Register all serial sections using phase correlation
 
@@ -53,6 +55,10 @@ def register_all_serial_sections(
         reload (bool, optional): Reload registration results data. Defaults to True.
         slice_window (tuple, optional): Window around the reference slice to consider.
             -1 for previous, 3 for 2 slices after etc... Defaults to (-1, 2).
+        max_shift_for_interpolation (float, optional): Maximum distance in um to
+            consider a shift for interpolation. Defaults to 400.
+        interpolation_smoothing (float, optional): Smoothing factor for RBF
+            interpolation. Defaults to 10.
 
 
     Returns:
@@ -65,37 +71,31 @@ def register_all_serial_sections(
     save_folder = analysis_folder / "serial_section_registration"
     save_folder.mkdir(exist_ok=True)
     if use_slurm:
-        slurm_folder = Path.home() / "slurm_logs" / "serial_section_registration"
-        slurm_folder.mkdir(exist_ok=True)
+        slurm_folder = Path.home() / "slurm_logs" / project / mouse
+        slurm_folder /= "serial_section_registration"
+        slurm_folder.mkdir(exist_ok=True, parents=True)
     else:
         slurm_folder = None
     redo = True
     if verbose and reload:
         print(f"Trying to reload previous registration results")
     for section, sec_info in section_infos.iterrows():
+        # Find the roi we need to compare to
+        ref_slice = f"{sec_info['chamber']}_{sec_info['roi']:02d}"
+        surrounding_rois = utils.get_surrounding_slices(
+            project=project,
+            mouse=mouse,
+            ref_chamber=sec_info["chamber"],
+            ref_roi=sec_info["roi"],
+            include_ref=False,
+            window=slice_window,
+        )
+
         if reload:
             redo = False
-            ref_slice = f"{sec_info['chamber']}_{sec_info['roi']:02d}"
-            surrounding_rois = utils.get_surrounding_slices(
-                project=project,
-                mouse=mouse,
-                ref_chamber=sec_info["chamber"],
-                ref_roi=sec_info["roi"],
-                include_ref=False,
-                window=slice_window,
-            )
             res = {}
             for sec in surrounding_rois.absolute_section:
-                shift = sec - sec_info.absolute_section
-                if shift < 0:
-                    name = "previous"
-                elif shift == 0:
-                    raise ValueError("Should not have the reference slice")
-                elif shift == 1:
-                    name = "next"
-                else:
-                    assert shift >= 2, f"Unexpected shift {shift}"
-                    name = f"n_{shift}"
+                name = _get_name_from_shift(sec, sec_info)
                 fname = save_folder / f"{ref_slice}_{name}_registration.csv"
                 if fname.exists():
                     res[name] = pd.read_csv(fname, index_col=0)
@@ -123,8 +123,48 @@ def register_all_serial_sections(
                 scripts_name=f"register_serial_sections_{section}",
                 slurm_folder=slurm_folder,
             )
+            for sec in surrounding_rois.absolute_section:
+                name = _get_name_from_shift(sec, sec_info)
+                interpolate_shifts(
+                    project,
+                    mouse,
+                    ref_slice,
+                    target_position=name,
+                    error_correction_ds_name=error_correction_ds_name,
+                    threshold=max_shift_for_interpolation,
+                    smoothing=interpolation_smoothing,
+                    vis=True,
+                    use_slurm=use_slurm,
+                    scripts_name=f"interpolate_shifts_{section}_{name}",
+                    slurm_folder=slurm_folder,
+                    job_dependency=res if use_slurm else None,
+                )
+
         output[section] = res
     return output
+
+
+def _get_name_from_shift(sec: int, sec_info: pd.Series):
+    """Small internal function to get the name of the shift
+
+    Args:
+        sec (int): Section number
+        sec_info (pd.Series): Series with the section information
+
+    Returns:
+        str: Name of the shift
+    """
+    shift = sec - sec_info.absolute_section
+    if shift < 0:
+        name = "previous"
+    elif shift == 0:
+        raise ValueError("Should not have the reference slice")
+    elif shift == 1:
+        name = "next"
+    else:
+        assert shift >= 2, f"Unexpected shift {shift}"
+        name = f"n_{shift}"
+    return name
 
 
 @slurm_it(conda_env="iss-preprocess", slurm_options={"mem": "64GB"})
