@@ -33,7 +33,7 @@ def register_all_serial_sections(
     max_shift_for_interpolation: float = 400,
     interpolation_smoothing: float = 10,
 ):
-    """Register all serial sections using phase correlation
+    """Register all serial sections using phase correlation of spot image
 
     Args:
         project (str): Project name
@@ -340,6 +340,8 @@ def register_local_spots(
     spot images for each slice and do phase correlation to find the shift between the
     two slices.
 
+    The output shift is the amount target_slice needs to be shifted to match ref_slice.
+
     Args:
         center_point (np.array): Center point (ara_y_rot, ara_z_rot) in mm
         spot_df (pd.DataFrame): DataFrame with spots.
@@ -355,7 +357,7 @@ def register_local_spots(
         debug (bool, optional): Return additional information. Defaults to False.
 
     Returns:
-        np.array: Shift between the two slices
+        np.array: [y_shift, z_shift] between the two slices
         float: Maximum correlation value
         np.array: Phase correlation results, if debug is True
         np.array: Spot images, if debug is True
@@ -469,6 +471,8 @@ def register_local_spots(
     maxcorr = np.max(avg_corr)
     img_shape = np.array(avg_corr.shape)
     shift = np.unravel_index(np.argmax(avg_corr), img_shape) - np.array(img_shape) / 2
+    # this would give z_shift, y_shift, inverse to match coords
+    shift = np.array([shift[1], shift[0]])
 
     if verbose:
         print(f"Max correlation: {maxcorr} at shift {shift}")
@@ -490,6 +494,9 @@ def interpolate_shifts(
     vis=True,
 ):
     """Interpolate shifts using RBF interpolation
+
+    Shifts are always computed using ['ara_y_rot', 'ara_z_rot'] as coordinates. This
+    is almost coronal, with higher Z being more ventral and higher Y being more left.
 
     Args:
         project (str): Project name
@@ -546,12 +553,12 @@ def interpolate_shifts(
 
     print("Interpolating shifts")
     # Find cells with valid shifts
-    shifts = res[["shift_z", "shift_y"]].values
+    shifts = res[["shift_y", "shift_z"]].values
     shift_ampl = np.linalg.norm(shifts, axis=1)
     valid = shift_ampl < threshold
     shifts = shifts[valid]
     good_idx = res.index[valid]
-    cell_coords = cells_in_ref.loc[good_idx, ["ara_z_rot", "ara_y_rot"]]
+    cell_coords = cells_in_ref.loc[good_idx, ["ara_y_rot", "ara_z_rot"]]
     z_shift_interpolator = RBFInterpolator(
         cell_coords, shifts[:, 0], smoothing=smoothing
     )
@@ -563,14 +570,14 @@ def interpolate_shifts(
     missing = cells_in_ref.index.difference(res.index)
     res.loc[missing] = np.nan
 
-    all_cell_coords = cells_in_ref[["ara_z_rot", "ara_y_rot"]].values
+    all_cell_coords = cells_in_ref[["ara_y_rot", "ara_z_rot"]].values
     smooth_shifts = np.stack(
         [z_shift_interpolator(all_cell_coords), y_shift_interpolator(all_cell_coords)],
         axis=1,
     )
-    res.loc[cells_in_ref.index, ["smooth_shift_z", "smooth_shift_y"]] = smooth_shifts
+    res.loc[cells_in_ref.index, ["smooth_shift_y", "smooth_shift_z"]] = smooth_shifts
     # add also cell coordinates to the res dataframe
-    res.loc[cells_in_ref.index, ["ara_z_rot", "ara_y_rot"]] = all_cell_coords
+    res.loc[cells_in_ref.index, ["ara_y_rot", "ara_z_rot"]] = all_cell_coords
     print("Saving results")
     res.to_csv(res_file)
 
@@ -584,4 +591,4 @@ def interpolate_shifts(
         print(f"Saved {save_folder / target}")
     print("Done")
 
-    return res, z_shift_interpolator, y_shift_interpolator
+    return res, y_shift_interpolator, z_shift_interpolator
