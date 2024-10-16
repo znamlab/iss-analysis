@@ -447,7 +447,12 @@ def save_stitched_for_manual_clicking(
                 roi=roi,
                 channels=channels[k],
             )
-            issp.io.write_stack(stack=img, fname=fname, bigtiff=True)
+            issp.io.write_stack(
+                stack=img,
+                fname=fname,
+                bigtiff=True,
+                compress=True,
+            )
             del img
 
     # get spots
@@ -487,6 +492,7 @@ def save_stitched_for_manual_clicking(
                 stack=mCherry_masks,
                 fname=destination / f"{mouse}_{chamber}_{roi}_mCherry_masks.tif",
                 bigtiff=True,
+                compress=True,
             )
             mCherry_centers = issp.pipeline.segment.make_cell_dataframe(
                 data_path,
@@ -538,6 +544,7 @@ def save_stitched_for_manual_clicking(
                 stack=cell_masks,
                 fname=fname.with_name(f"{mouse}_{chamber}_{roi}_all_cells_mask.tif"),
                 bigtiff=True,
+                compress=True,
             )
 
             valid_masks = rabies_assignment[
@@ -547,7 +554,9 @@ def save_stitched_for_manual_clicking(
             rabies_cells = np.zeros_like(cell_masks)
             for mask in valid_masks:
                 rabies_cells[cell_masks == mask] = mask
-            issp.io.write_stack(stack=rabies_cells, fname=fname, bigtiff=True)
+            issp.io.write_stack(
+                stack=rabies_cells, fname=fname, compress=True, bigtiff=True
+            )
 
     if save_spots and save_rabies_masks:
         # save spots that are assigned to a cell, with the cell mask and barcode
