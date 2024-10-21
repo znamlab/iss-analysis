@@ -29,7 +29,7 @@ def assign_barcodes_to_masks(
         mask (pd.DataFrame): DataFrame with the mask centres. Must contain the columns
             'x' and 'y'.
         method (str): Method to use for the assignment. Options are 'variational_gmm'
-            and 'spot_by_spot'. Default is 'variational_gmm'.
+            and 'spot_by_spot'. Default is 'spot_by_spot'.
         p (float): Power of the spot count prior. Default is 0.9.
         m (float): Length scale of the spot count prior. Default is 0.1.
         background_spot_prior (float): Prior for the background spots. Default is 0.0001
@@ -463,10 +463,6 @@ def assign_single_barcode_single_round(
     # compute the likelihood of each combination
     likelihood_changes, best_targets = np.zeros((2, len(combinations)), dtype=float)
     for i_comb, combi in enumerate(combinations):
-        if len(combi) == 5 and (
-            np.abs(combi - np.array([10, 11, 12, 13, 14])).sum() == 0
-        ):
-            print(i_comb)
         (
             likelihood_changes[i_comb],
             best_targets[i_comb],
