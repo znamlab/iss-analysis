@@ -184,6 +184,7 @@ def assign_barcode_all_chambers(
     conflicts="abort",
     use_slurm=True,
     n_workers=1,
+    valid_chambers=None,
 ):
     """Assign barcodes to masks for all chambers.
 
@@ -207,6 +208,8 @@ def assign_barcode_all_chambers(
             Defaults: 1.
         run_by_groupsize (bool, optional): Whether to run the assignment by group size.
             Defaults: True.
+        valid_chambers (list, optional): The list of valid chambers to include. Defaults
+            to None.
 
     Returns:
         pandas.DataFrame: The assigned barcodes for all masks.
@@ -245,12 +248,16 @@ def assign_barcode_all_chambers(
     slurm_folder = Path.home() / "slurm_logs" / project / mouse_name / "assign_barcodes"
     slurm_folder.mkdir(exist_ok=True)
     for chamber_datapath in chambers:
+        chamber = Path(chamber_datapath).stem
+        if valid_chambers is not None:
+            if chamber not in valid_chambers:
+                continue
         ops = issp.io.load_ops(chamber_datapath)
         use_rois = ops.get("use_rois", None)
         if use_rois is None:
             roi_dims = issp.io.get_roi_dimensions(chamber_datapath)
             use_rois = roi_dims[:, 0]
-        chamber = Path(chamber_datapath).stem
+
         chamber_entity = flz.get_entity(
             name=f"{mouse_name}_{chamber}", flexilims_session=flm_sess
         )
