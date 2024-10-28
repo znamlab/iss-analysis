@@ -84,7 +84,8 @@ def get_mcherry_cells(
         verbose (bool, optional): Print verbose output. Default is True.
         which (str, optional): Which starter cells to load. Use 'manual' to load the
             initial manual click in `analysis/starter_cells`, 'curated' for the more
-            exhaustive curated masks in `chamber_XX/cells`. Default is 'curated'.
+            exhaustive curated masks in `chamber_XX/cells`, `raw` for the automatic
+            detection before curation. Default is 'curated'.
         prefix (str, optional): The prefix of the mCherry cells files. Default is
             'mCherry_1'.
 
@@ -118,19 +119,23 @@ def get_mcherry_cells(
             mch["roi"] = int(roi)
             mch["original_index"] = clicked["index"].astype(int)
             mcherry.append(mch)
-    elif which == "curated":
+    elif which in ["curated", "raw"]:
         chambers = get_chamber_datapath(f"{project}/{mouse}")
         for chamber_path in chambers:
             chamber_path = issp.io.get_processed_path(chamber_path)
             chamber = chamber_path.stem
             mch_folder = chamber_path / "cells" / f"{prefix}_cells"
-            df = mch_folder / f"{prefix}_df_corrected_curated.pkl"
+            if which == "curated":
+                df = mch_folder / f"{prefix}_df_corrected_curated.pkl"
+            else:
+                df = mch_folder / f"{prefix}_df_corrected.pkl"
             assert df.exists(), f"No mCherry cells found in {df}"
             mch = pd.read_pickle(df)
             mch["chamber"] = chamber
             mch["original_index"] = mch.index
-            mch["x"] = mch["centroid-1"]
-            mch["y"] = mch["centroid-0"]
+            if "centroid-1" in mch.columns:
+                mch["x"] = mch["centroid-1"]
+                mch["y"] = mch["centroid-0"]
             mcherry.append(mch)
     else:
         raise ValueError(f"Invalid which parameter {which}")
