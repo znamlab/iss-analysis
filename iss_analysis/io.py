@@ -470,8 +470,8 @@ def generate_csv(expression_matrix, download_base, region_of_interest, neurotran
     df = pd.DataFrame(expression_matrix.X.toarray(), columns=expression_matrix.var_names)
 
     # Add the 'subclass' and 'cluster' columns from the `obs` DataFrame to `df`
-    df['subclass'] = expression_matrix.obs['subclass']
-    df['cluster'] = expression_matrix.obs['cluster']
+    df['subclass'] = expression_matrix.obs['subclass'].values
+    df['cluster'] = expression_matrix.obs['cluster'].values
 
     # Create gene mapping DataFrame
     gene_mapping = pd.DataFrame({

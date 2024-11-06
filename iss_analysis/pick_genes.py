@@ -13,7 +13,7 @@ def compute_means(exons_df, classify_by, gene_filter="\d"):
     ).to_numpy()  # n cells x n genes matrix
     # names of columns containing expression data are integer numbers
     expression_by_cluster = (
-        exons_df.groupby([classify_by]).mean().filter(regex=gene_filter)
+        exons_df.groupby([classify_by]).mean(numeric_only=True).filter(regex=gene_filter)
     )
     cluster_means = expression_by_cluster.to_numpy()  # n clusters x n genes matrix
 
