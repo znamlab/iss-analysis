@@ -4,7 +4,7 @@ from pathlib import Path
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.linalg import lstsq
 from skimage.transform import resize
-import bg_atlasapi as bga
+import brainglobe_atlasapi as bga
 
 from znamutils import slurm_it
 from iss_preprocess.io.save import write_stack

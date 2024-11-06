@@ -20,7 +20,7 @@ setup(
         "pciSeq",
         "h5py",
         "defopt",
-        "bg-atlasapi",
+        "brainglobe-atlasapi",
         "anndata", 
         "abc_atlas_access @ git+https://github.com/alleninstitute/abc_atlas_access@main",  # The allen brain atlas cache
         "iss_preprocess @ git+ssh://git@github.com/znamlab/iss-preprocess.git"
