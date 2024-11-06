@@ -3,7 +3,7 @@ import defopt
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tqdm import tqdm
-from .io import load_data_yao_2021, load_data_tasic_2018
+from .io import load_data_yao_2021, load_data_tasic_2018, read_yao_2023
 import time
 
 
@@ -349,6 +349,7 @@ def main(
     datapath="/camp/lab/znamenskiyp/home/shared/resources/allen2018/",
     subsample=1,
     classify="cluster",
+    dataset = 'tasic_2018'
 ):
     """
     Optimize gene set for cell classification.
@@ -363,7 +364,12 @@ def main(
 
     """
     print("loading reference data...", flush=True)
-    exons_df, gene_names = load_data_tasic_2018(datapath)
+    if dataset == 'tasic_2018':
+        exons_df, gene_names = load_data_tasic_2018(datapath)
+    elif dataset == 'yao_2023':
+        exons_df, gene_names = read_yao_2023(datapath)
+    else:
+        raise 'dataset is not supported'
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
         exons_df, classify_by=classify, gene_filter="\d"
     )
