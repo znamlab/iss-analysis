@@ -295,15 +295,21 @@ def transform_stack_to_ara(
     prefix,
     channels,
     error_correction_ds_name,
-    output_px_size,
+    output_px_size=10,
     interpolate=True,
     output_folder=None,
+    ara_zshifts_interpolator=None,
+    ara_yshifts_interpolator=None,
+    full_stack=None,
 ):
     """Transform the registered stack to ARA coordinates.
 
     Will load the registered stack, the ARA coordinates and the rabies spots to find the
     main plane of the data. Then will rotate the ARA coordinates to the slice orientation
     and transform the stack to the ARA coordinates.
+
+    The output is generated from the stack downsampled to the ara coordinates shape. It
+    can be interpolated if `output_px_size` is higher than the registration pixel size.
 
     Args:
         project (str): Project name
@@ -320,25 +326,27 @@ def transform_stack_to_ara(
             coordinates, otherwise will use closest pixel. Defaults to True.
         output_folder (str, optional): Folder to save the rotated stack. If None, will
             not save the stack. Defaults to None.
+        ara_zshifts_interpolator (str, optional): Interpolator for the z shifts for 
+            serial section registration. If None, no shifts will be applied. Defaults to 
+            None.
+        ara_yshifts_interpolator (str, optional): Interpolator for the y shifts for
+            serial section registration. If None, no shifts will be applied. Defaults to
+            None.
+        full_stack (np.ndarray, optional): Full stack to use. If None, will load the
+            stack using the stitch_registered function. Defaults to None.
 
     Returns:
         np.ndarray: Rotated stack
     """
     print(f"Transforming stack to ARA coordinates for {mouse}/{chamber}/{roi}")
     data_path = get_processed_path(f"{project}/{mouse}/{chamber}")
-    print("    ... stitching")
-    full_stack = stitch_registered(
-        data_path,
-        prefix=prefix,
-        roi=roi,
-        channels=channels,
-    )
+
+    print("    ... getting ara coordinates")
     ara_coords = load_coordinate_image(data_path, roi, full_scale=False)
-    # downsample stack to ara coordinates shape
-    stack = np.empty((ara_coords.shape[0], ara_coords.shape[1], full_stack.shape[-1]))
-    for i in range(full_stack.shape[-1]):
-        stack[..., i] = resize(full_stack[..., i], ara_coords.shape[:2])
-    del full_stack
+    bad_parts = np.abs(ara_coords).sum(axis=2) == 0
+    if bad_parts.sum():
+        print(f"Found {bad_parts.sum()} parts of the ARA image with no data")
+    ara_coords[bad_parts, :] = np.nan
 
     # find the main ara plane of the data using rabies spots
     ara_info_folder = (
@@ -348,13 +356,42 @@ def transform_stack_to_ara(
         ara_info_folder
         / f"{error_correction_ds_name}_{chamber}_{roi}_rabies_spots_ara_info.pkl"
     )
-    transform = get_ara_to_slice_rotation_matrix(spot_df=pd.read_pickle(target))
-
+    print("    ... rotating ara coordinates")
+    rab_spots = pd.read_pickle(target)
+    transform = get_ara_to_slice_rotation_matrix(spot_df=rab_spots)
     # rotate the ara coordinates
     ara_coords_rot = ara_coords.reshape(-1, 3) @ transform
     ara_coords_rot = ara_coords_rot.reshape(ara_coords.shape)
     # the new ara coordinates are in mm, and are ~AP, ~DV, ~ML, with AP being hopefully
-    # constant.
+    # constant. They are usually called ara_x_rot, ara_y_rot, ara_z_rot in that order.
+    if ara_zshifts_interpolator is not None:
+        print("    ... applying z shifts")
+        z_shifts = ara_zshifts_interpolator(ara_coords_rot[:,:, 1:].reshape((-1, 2)))
+        ara_coords_rot[..., 2] += (z_shifts.reshape(ara_coords.shape[:2]) / 1000)
+    if ara_yshifts_interpolator is not None:
+        print("    ... applying y shifts")
+        y_shifts = ara_yshifts_interpolator(ara_coords_rot[:,:, 1:].reshape((-1, 2)))
+        ara_coords_rot[..., 1] += (y_shifts.reshape(ara_coords.shape[:2]) / 1000)
+
+    if full_stack is None:
+        print("    ... full stack stitching")
+        full_stack = stitch_registered(
+            data_path,
+            prefix=prefix,
+            roi=roi,
+            channels=channels,
+        )
+        deleteit = True  # free memory
+    else:
+        # it was given as an argument, don't delete it
+        deleteit = False
+
+    # downsample stack to ara coordinates shape
+    stack = np.empty((ara_coords.shape[0], ara_coords.shape[1], full_stack.shape[-1]))
+    for i in range(full_stack.shape[-1]):
+        stack[..., i] = resize(full_stack[..., i], ara_coords.shape[:2])
+    if deleteit:
+        del full_stack
 
     # transform the stack to ara coordinates
     shapes = np.vstack([stack.shape[:2], ara_coords_rot.shape[:2]])
@@ -393,7 +430,7 @@ def transform_stack_to_ara(
         output_folder = Path(output_folder)
         output_folder.mkdir(exist_ok=True, parents=True)
         target = output_folder / f"{prefix}_{chamber}_{roi}_rotated_stack.tif"
-        write_stack(rotated_stack, target)
+        write_stack(rotated_stack, target, compress=True)
         print(f"Saved rotated stack to {target}")
 
     return rotated_stack
