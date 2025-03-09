@@ -606,6 +606,7 @@ def save_stitched_for_manual_clicking(
     save_mcherry_masks=True,
     save_rabies_masks=True,
     save_spots=True,
+    correct_illumination=True,
 ):
     """Save stitched images for manual clicking.
 
@@ -664,7 +665,13 @@ def save_stitched_for_manual_clicking(
                 prefix=v,
                 roi=roi,
                 channels=channels[k],
+                correct_illumination=correct_illumination,
             )
+            # stretch to fit into uint16
+            min_val = img.min()
+            img -= min_val
+            max_val = img.max()
+            img = (img / max_val * 2**16).astype(np.uint16)
             issp.io.write_stack(
                 stack=img,
                 fname=fname,
@@ -752,7 +759,7 @@ def save_stitched_for_manual_clicking(
         # keep only the relevant roi
         rabies_assignment = err_corr[
             (err_corr.chamber == chamber) & (err_corr.roi == roi)
-        ]
+        ].copy()
         fname = destination / f"{mouse}_{chamber}_{roi}_rabies_cells_masks.tif"
         if fname.exists() and not redo:
             print(f"File {fname} already exists, skipping")
