@@ -4,15 +4,12 @@ from pathlib import Path
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.linalg import lstsq
 from skimage.transform import resize
-import bg_atlasapi as bga
+import brainglobe_atlasapi as bga
 
 from znamutils import slurm_it
 from iss_preprocess.io.save import write_stack
 from iss_preprocess.io.load import get_processed_path
-from iss_preprocess.pipeline.ara_registration import (
-    load_coordinate_image,
-    make_area_image,
-)
+from iss_preprocess.pipeline.ara_registration import load_coordinate_image
 from iss_preprocess.pipeline.stitch import stitch_registered
 
 from . import utils
@@ -226,8 +223,7 @@ def project_to_other_roi(fixed_spots, moving_spots, method="interpolate", verbos
         return moving_slice_coords
 
     # Interpolate
-    match method:
-        case "interpolate":
+    if method == "interpolate":
             interpolator = LinearNDInterpolator(fixed_ara_coords, fixed_slice_coords)
             moving_slice_coords = interpolator(projected_ara)
             outofhull = np.any(np.isnan(moving_slice_coords), axis=1)
@@ -237,11 +233,11 @@ def project_to_other_roi(fixed_spots, moving_spots, method="interpolate", verbos
             )
             if verbose:
                 print(f"{outofhull.sum()}/{len(outofhull)} out of hull used linear")
-        case "linear":
+    elif method == "linear":
             moving_slice_coords = _linear_interp(
                 fixed_ara_coords, fixed_slice_coords, projected_ara
             )
-        case _:
+    else:
             raise ValueError(
                 f"Unknown method: {method}." + " Must be one of 'linear', 'interpolate'"
             )
