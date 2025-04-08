@@ -660,7 +660,7 @@ def save_stitched_for_manual_clicking(
             print(f"File {fname} already exists, skipping")
         else:
             print(f"Stitching {k}")
-            img = issp.pipeline.stitch_registered(
+            img = issp.pipeline.stitch.stitch_registered(
                 data_path,
                 prefix=v,
                 roi=roi,
