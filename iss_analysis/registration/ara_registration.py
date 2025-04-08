@@ -224,23 +224,23 @@ def project_to_other_roi(fixed_spots, moving_spots, method="interpolate", verbos
 
     # Interpolate
     if method == "interpolate":
-            interpolator = LinearNDInterpolator(fixed_ara_coords, fixed_slice_coords)
-            moving_slice_coords = interpolator(projected_ara)
-            outofhull = np.any(np.isnan(moving_slice_coords), axis=1)
-            # linear interpolation for the out of hull
-            moving_slice_coords[outofhull] = _linear_interp(
-                fixed_ara_coords, fixed_slice_coords, projected_ara[outofhull]
-            )
-            if verbose:
-                print(f"{outofhull.sum()}/{len(outofhull)} out of hull used linear")
+        interpolator = LinearNDInterpolator(fixed_ara_coords, fixed_slice_coords)
+        moving_slice_coords = interpolator(projected_ara)
+        outofhull = np.any(np.isnan(moving_slice_coords), axis=1)
+        # linear interpolation for the out of hull
+        moving_slice_coords[outofhull] = _linear_interp(
+            fixed_ara_coords, fixed_slice_coords, projected_ara[outofhull]
+        )
+        if verbose:
+            print(f"{outofhull.sum()}/{len(outofhull)} out of hull used linear")
     elif method == "linear":
-            moving_slice_coords = _linear_interp(
-                fixed_ara_coords, fixed_slice_coords, projected_ara
-            )
+        moving_slice_coords = _linear_interp(
+            fixed_ara_coords, fixed_slice_coords, projected_ara
+        )
     else:
-            raise ValueError(
-                f"Unknown method: {method}." + " Must be one of 'linear', 'interpolate'"
-            )
+        raise ValueError(
+            f"Unknown method: {method}." + " Must be one of 'linear', 'interpolate'"
+        )
     for i, col in enumerate(["slice_proj_x", "slice_proj_y"]):
         moving_spots[col] = moving_slice_coords[:, i]
 
@@ -322,8 +322,8 @@ def transform_stack_to_ara(
             coordinates, otherwise will use closest pixel. Defaults to True.
         output_folder (str, optional): Folder to save the rotated stack. If None, will
             not save the stack. Defaults to None.
-        ara_zshifts_interpolator (str, optional): Interpolator for the z shifts for 
-            serial section registration. If None, no shifts will be applied. Defaults to 
+        ara_zshifts_interpolator (str, optional): Interpolator for the z shifts for
+            serial section registration. If None, no shifts will be applied. Defaults to
             None.
         ara_yshifts_interpolator (str, optional): Interpolator for the y shifts for
             serial section registration. If None, no shifts will be applied. Defaults to
@@ -362,12 +362,12 @@ def transform_stack_to_ara(
     # constant. They are usually called ara_x_rot, ara_y_rot, ara_z_rot in that order.
     if ara_zshifts_interpolator is not None:
         print("    ... applying z shifts")
-        z_shifts = ara_zshifts_interpolator(ara_coords_rot[:,:, 1:].reshape((-1, 2)))
-        ara_coords_rot[..., 2] += (z_shifts.reshape(ara_coords.shape[:2]) / 1000)
+        z_shifts = ara_zshifts_interpolator(ara_coords_rot[:, :, 1:].reshape((-1, 2)))
+        ara_coords_rot[..., 2] += z_shifts.reshape(ara_coords.shape[:2]) / 1000
     if ara_yshifts_interpolator is not None:
         print("    ... applying y shifts")
-        y_shifts = ara_yshifts_interpolator(ara_coords_rot[:,:, 1:].reshape((-1, 2)))
-        ara_coords_rot[..., 1] += (y_shifts.reshape(ara_coords.shape[:2]) / 1000)
+        y_shifts = ara_yshifts_interpolator(ara_coords_rot[:, :, 1:].reshape((-1, 2)))
+        ara_coords_rot[..., 1] += y_shifts.reshape(ara_coords.shape[:2]) / 1000
 
     if full_stack is None:
         print("    ... full stack stitching")
@@ -377,7 +377,7 @@ def transform_stack_to_ara(
             roi=roi,
             channels=channels,
         )
-        deleteit = True  # free memory
+        deleteit = True  # free memory
     else:
         # it was given as an argument, don't delete it
         deleteit = False
