@@ -607,6 +607,7 @@ def save_stitched_for_manual_clicking(
     save_rabies_masks=True,
     save_spots=True,
     correct_illumination=True,
+    acq_to_skip=None,
 ):
     """Save stitched images for manual clicking.
 
@@ -625,6 +626,9 @@ def save_stitched_for_manual_clicking(
         save_rabies_masks (bool, optional): Save rabies masks. Defaults to True.
         save_spots (bool, optional): Save spots. Defaults to True.
         correct_illumination (bool, optional): Correct illumination. Defaults to False.
+        acq_to_skip (list, optional): List of acquisitions that should be skipped.
+            Defaults to None.
+
 
     Returns:
         None
@@ -649,6 +653,13 @@ def save_stitched_for_manual_clicking(
             mCherry=[2, 3],
             reference=ops["ref_ch"],
         )
+        if acq_to_skip is not None:
+            for acq in acq_to_skip:
+                if acq in stuff_to_save:
+                    del stuff_to_save[acq]
+                    del channels[acq]
+                else:
+                    print(f"Unknown acquisition: {acq}")
     else:
         stuff_to_save = {}
         channels = {}
