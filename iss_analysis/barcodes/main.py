@@ -8,6 +8,7 @@ import flexiznam as flz
 from znamutils import slurm_it
 import iss_preprocess as issp
 
+import iss_analysis  # To get the path of the library
 from .barcodes import get_barcodes, correct_barcode_sequences
 from .probabilistic_assignment import (
     assign_barcodes_to_masks,
@@ -15,7 +16,7 @@ from .probabilistic_assignment import (
     assign_single_barcode,
 )
 from ..io import get_chamber_datapath
-from ..utils import get_default_args
+from ..utils import get_default_args, get_git_description
 from iss_preprocess.pipeline.segment import get_cell_masks
 
 
@@ -104,6 +105,11 @@ def error_correct_acquisition(
         return pd.read_pickle(err_corr_ds.path_full)
     print(f"Error correcting barcode sequences for {project}/{mouse_name}")
     err_corr_ds.extra_attributes["started"] = str(pd.Timestamp.now())
+    # Get iss_analysis git version
+    iss_analysis_repo_path = Path(iss_analysis.__file__).resolve().parent.parent
+    iss_analysis_git_version = get_git_description(iss_analysis_repo_path)
+    err_corr_ds.extra_attributes["iss_analysis_git_version"] = iss_analysis_git_version
+
     err_corr_ds.update_flexilims(mode="overwrite")
     slurm_folder = Path.home() / "slurm_logs" / project / mouse_name
     scripts_name = err_corr_ds.dataset_name
