@@ -160,6 +160,10 @@ def correct_barcode_sequences(
         print("Finding matching sequences ...", flush=True)
         iterator = tqdm(iterator, total=len(unique_sequences))
     for i, sequence in iterator:
+        if reassigned[i]:
+            # this sequence has already been reassigned, skip
+            continue
+
         # if within edit distance and lower in the list (i.e. lower abundance),
         # then update the sequence
         # note that unique_sequences has no NaN but sequence does
