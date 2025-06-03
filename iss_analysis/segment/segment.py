@@ -101,11 +101,16 @@ def get_barcode_in_cells(
             # find the one that matches the roi
             rabies_mask_ds = None
             for ds in rabies_mask_dss:
-                if ds.extra_attributes["roi"] == roi:
+                if (ds.extra_attributes["roi"] == roi) and (
+                    ds.extra_attributes["error_correction_ds_name"]
+                    == error_correction_ds_name
+                ):
                     rabies_mask_ds = ds
                     break
             if rabies_mask_ds is None:
-                raise ValueError("No dataset found for the given roi")
+                raise ValueError(
+                    f"No dataset found for roi {roi} and {error_correction_ds_name}"
+                )
             rab_ass = pd.read_pickle(rabies_mask_ds.path_full)
             assert np.isnan(rab_spot_df.loc[rab_ass.index, "cell_mask"]).all()
             rab_spot_df.loc[rab_ass.index, "cell_mask"] = rab_ass["mask"].astype(float)
@@ -382,7 +387,7 @@ def _starter_from_masks(
     mcherry_cells["n_barcodes"] = 0
     mcherry_cells["valid_barcodes"] = [{} for i in range(len(mcherry_cells))]
     mcherry_cells["is_starter"] = False
-    mcherry_cells["percentage_in_mask"] = 0
+    mcherry_cells["percentage_in_mask"] = 0.0
     mcherry_cells["centroid_in_mask"] = False
 
     rab_spot_df["mcherry_mask_label"] = 0
@@ -393,7 +398,7 @@ def _starter_from_masks(
     rabies_cell_properties["mcherry_uid"] = None
 
     for (ch, roi), mcherry_df in mcherry_cells.groupby(["chamber", "roi"]):
-        if verbose:
+        if int(verbose) > 1:
             print(f"Finding starter cell for {ch} {roi}")
         px_size = issp.io.get_pixel_size(f"{project}/{mouse}/{ch}")
         mask_expansion = int(max_starter_distance / px_size)
@@ -450,7 +455,7 @@ def _starter_from_masks_single_roi(
     spots_roi = rab_spot_df[(rab_spot_df.roi == roi) & (rab_spot_df.chamber == chamber)]
 
     in_mask = spots_roi.mcherry_mask_label > 0
-    if verbose:
+    if int(verbose) > 1:
         print(f"Found {in_mask.sum()}/{len(in_mask)} spots in the masks")
     spots_in_mask = spots_roi[in_mask]
 
@@ -496,10 +501,19 @@ def _starter_from_masks_single_roi(
 
         # Add info to rab_cell_df
         rab_cells = spots_bc_in_mask.mask_uid.unique()
+
         for rab_cell in rab_cells:
-            if isinstance(rab_cell, str):  # could be a nan if spots not assigned
+            # We look at all rabies spots, there could be cases where there are enough
+            # non-assigned spots in the same mask (in case of large masks), so their
+            # mask_id is nan, ignore those
+            if isinstance(rab_cell, str) and (rab_cell != "nan"):
                 rabies_cell_properties.loc[rab_cell, "is_starter"] = True
                 rabies_cell_properties.loc[rab_cell, "mcherry_uid"] = mcherry_uid
+            elif int(verbose) > 0:
+                print(
+                    f"Ignoring {len(spots_bc_in_mask)} non-assigned spot with barcode {bc} in mCherry cell {mcherry_uid}"
+                )
+            assert rabies_cell_properties.x.isna().sum() == 0
     return mcherry_cells, rab_spot_df, rabies_cell_properties
 
 

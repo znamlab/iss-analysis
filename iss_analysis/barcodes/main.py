@@ -156,8 +156,6 @@ def run_error_correction(
 
     flm_sess = flz.get_flexilims_session(project_id=project)
     err_corr_ds = flz.Dataset.from_flexilims(id=dataset_id, flexilims_session=flm_sess)
-    # We need to make sure that the dataset is created to avoid another job
-    # to create the same dataset.
     print(f"Started error correcting barcode sequences for {project}/{mouse_name}")
     print(f"Dataset {err_corr_ds.dataset_name} with ID {err_corr_ds.id}.")
     barcode_spots, gmm, all_barcode_spots = get_barcodes(
