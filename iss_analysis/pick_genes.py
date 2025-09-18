@@ -3,23 +3,23 @@ import defopt
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tqdm import tqdm
-from .io import load_data_yao_2021, load_data_tasic_2018
+from .io import load_data_yao_2021, load_data_tasic_2018, read_yao_2023
 import time
 
 
-def compute_means(exons_df, classify_by, gene_filter="\d"):
+def compute_means(exons_df, classify_by, gene_filter=r"\d"):
     exons_matrix = exons_df.filter(
         regex=gene_filter
     ).to_numpy()  # n cells x n genes matrix
     # names of columns containing expression data are integer numbers
     expression_by_cluster = (
-        exons_df.groupby([classify_by]).mean().filter(regex=gene_filter)
+        exons_df.groupby([classify_by]).mean(numeric_only=True).filter(regex=gene_filter)
     )
     cluster_means = expression_by_cluster.to_numpy()  # n clusters x n genes matrix
 
     cluster_ids = np.empty(len(exons_df[classify_by]), dtype=int)
     for i, cluster in enumerate(exons_df[classify_by]):
-        cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0]
+        cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0].item() #extract the item from the array
     cluster_labels = expression_by_cluster.index
     return exons_matrix, cluster_ids, cluster_means, cluster_labels
 
@@ -346,9 +346,10 @@ def main(
     savepath,
     *,
     efficiency=0.01,
-    datapath="/camp/lab/znamenskiyp/home/shared/resources/allen2018/",
+    datapath="'/nemo/lab/znamenskiyp/home/shared/projects/colasa_MOs_panel'",
     subsample=1,
     classify="cluster",
+    dataset = 'tasic_2018'
 ):
     """
     Optimize gene set for cell classification.
@@ -363,9 +364,14 @@ def main(
 
     """
     print("loading reference data...", flush=True)
-    exons_df, gene_names = load_data_tasic_2018(datapath)
+    if dataset == 'tasic_2018':
+        exons_df, gene_names = load_data_tasic_2018(datapath)
+    elif dataset == 'yao_2023':
+        exons_df, gene_names = read_yao_2023(datapath)
+    else:
+        raise 'dataset is not supported'
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
-        exons_df, classify_by=classify, gene_filter="\d"
+        exons_df, classify_by=classify, gene_filter=r"\d"
     )
     print("resampling reference data...", flush=True)
     exons_matrix, cluster_means = resample_counts(

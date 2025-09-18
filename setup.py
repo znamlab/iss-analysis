@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+
 setup(
     name="iss_analysis",
     version="0.1",
@@ -19,8 +20,13 @@ setup(
         "pciSeq",
         "h5py",
         "defopt",
+        "brainglobe-atlasapi",
+        "anndata", 
+        "abc_atlas_access @ git+https://github.com/alleninstitute/abc_atlas_access@main",  # The allen brain atlas cache
+        "iss_preprocess @ git+ssh://git@github.com/znamlab/iss-preprocess.git"
     ],
     entry_points={
         "console_scripts": ["pick_genes = iss_analysis.pick_genes:entry_point"]
-    },
+    }
 )
+
