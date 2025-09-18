@@ -474,9 +474,7 @@ def generate_csv(expression_matrix, download_base, region_of_interest, neurotran
     df['cluster'] = expression_matrix.obs['cluster'].values
 
     # Create gene mapping DataFrame
-    gene_mapping = pd.DataFrame({
-        'gene_index': range(len(expression_matrix.var)),
-        'gene_identifier': expression_matrix.var_names,
+    gene_names = pd.DataFrame({
         'gene_symbol': expression_matrix.var.gene_symbol.values
     })
 
@@ -486,11 +484,9 @@ def generate_csv(expression_matrix, download_base, region_of_interest, neurotran
 
     # Define the path for gene mapping CSV
     gene_path = download_base / f'gene_mapping_{region_of_interest}_{neurotransmitters_str}.csv'
-    gene_mapping.to_csv(gene_path, index=False)
+    gene_names.to_csv(gene_path, index=False)
 
-    # Return the generated DataFrames
-    gene_names = expression_matrix.var.gene_symbol
-    return df, gene_names
+    return df, gene_names.squeeze() #to return a Series
 
 
 
@@ -525,7 +521,7 @@ def read_yao_2023(datapath):
 
     # Read the single files found
     df = pd.read_csv(csv_files[0])
-    gene_names = pd.read_csv(gene_files[0])
+    gene_names = pd.read_csv(gene_files[0]).squeeze() #to return a Series
 
     return df, gene_names
 
@@ -535,7 +531,8 @@ def main_yao_2023(abc_cache,
                   filename_list, 
                   download_base,
                   region_of_interest = 'MO-FRP', 
-                  neurotransmitters = ['GABA', 'Glut']):
+                  neurotransmitters = ['GABA', 'Glut'], 
+                  extract_csv = True):
     
     '''
     Accesses the Allen dataset on Yao et. al 2023, "A high-resolution 
@@ -601,11 +598,16 @@ def main_yao_2023(abc_cache,
     
     concat_expression_matrix = anndata.concat([filelist[0],filelist[1]], merge = 'unique')
 
-    print('Extracting and generating csv')
-    df, gene_names = generate_csv(concat_expression_matrix, 
-                                  download_base = download_base, 
-                                  region_of_interest=region_of_interest, 
-                                  neurotransmitters=neurotransmitters)
+    if extract_csv:
+        print('Extracting and generating csv')
+        df, gene_names = generate_csv(concat_expression_matrix, 
+                                    download_base = download_base, 
+                                    region_of_interest=region_of_interest, 
+                                    neurotransmitters=neurotransmitters)
 
-    return df, gene_names
+        return df, gene_names
+    
+    else:
+        
+        return concat_expression_matrix
     

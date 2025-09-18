@@ -7,7 +7,7 @@ from .io import load_data_yao_2021, load_data_tasic_2018, read_yao_2023
 import time
 
 
-def compute_means(exons_df, classify_by, gene_filter="\d"):
+def compute_means(exons_df, classify_by, gene_filter=r"\d"):
     exons_matrix = exons_df.filter(
         regex=gene_filter
     ).to_numpy()  # n cells x n genes matrix
@@ -19,7 +19,7 @@ def compute_means(exons_df, classify_by, gene_filter="\d"):
 
     cluster_ids = np.empty(len(exons_df[classify_by]), dtype=int)
     for i, cluster in enumerate(exons_df[classify_by]):
-        cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0]
+        cluster_ids[i] = np.nonzero(expression_by_cluster.index == cluster)[0].item() #extract the item from the array
     cluster_labels = expression_by_cluster.index
     return exons_matrix, cluster_ids, cluster_means, cluster_labels
 
@@ -346,7 +346,7 @@ def main(
     savepath,
     *,
     efficiency=0.01,
-    datapath="/camp/lab/znamenskiyp/home/shared/resources/allen2018/",
+    datapath="'/nemo/lab/znamenskiyp/home/shared/projects/colasa_MOs_panel'",
     subsample=1,
     classify="cluster",
     dataset = 'tasic_2018'
@@ -371,7 +371,7 @@ def main(
     else:
         raise 'dataset is not supported'
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
-        exons_df, classify_by=classify, gene_filter="\d"
+        exons_df, classify_by=classify, gene_filter=r"\d"
     )
     print("resampling reference data...", flush=True)
     exons_matrix, cluster_means = resample_counts(
