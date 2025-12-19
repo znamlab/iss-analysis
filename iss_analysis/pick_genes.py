@@ -349,7 +349,11 @@ def main(
     datapath="'/nemo/lab/znamenskiyp/home/shared/projects/colasa_MOs_panel'",
     subsample=1,
     classify="cluster",
-    dataset = 'tasic_2018'
+    dataset = 'tasic_2018', 
+    area = None, 
+    include_subclasses = None, 
+    gene_set = None
+
 ):
     """
     Optimize gene set for cell classification.
@@ -361,6 +365,14 @@ def main(
         subsample (float): whether to subsample cells on each iteration of
             gene selection
         classify (str): which field to use for classification. Default: 'cluster'
+        dataset
+        dataset(str): which dataset to use
+        area(str): which cortical area to use. Defaults to whatever the behaviour specified 
+        in the dataset reading function
+        include_subclasses(list of str): which subclasses to include in the reference. 
+        Defaults to whatever the behaviour specified in the dataset reading function
+        gene_set(list of str or set of str): which genes to include at the begginning of the
+        greedy process. 
 
     """
     print("loading reference data...", flush=True)
@@ -368,6 +380,13 @@ def main(
         exons_df, gene_names = load_data_tasic_2018(datapath)
     elif dataset == 'yao_2023':
         exons_df, gene_names = read_yao_2023(datapath)
+    elif dataset == 'yao_2021':
+        if area is None or include_subclasses is None:
+            exons_df, gene_names = load_data_yao_2021(datapath) #defaults to normal VISp behaviour
+        else:
+            exons_df, gene_names = load_data_yao_2021(datapath, 
+                                                      area=area, 
+                                                      include_subclasses=include_subclasses)
     else:
         raise 'dataset is not supported'
     exons_matrix, cluster_ids, cluster_means, cluster_labels = compute_means(
@@ -380,9 +399,15 @@ def main(
     print("computing cluster probabilities...", flush=True)
     probs = compute_cluster_probabilities(exons_matrix, cluster_means, nu=0.001)
     print("optimizing gene set...", flush=True)
-    include_genes, gene_set_history, accuracy_history = optimize_gene_set(
+    if gene_set == None: #default behaviour
+        include_genes, gene_set_history, accuracy_history = optimize_gene_set(
         probs, cluster_ids, gene_names, subsample_cells=subsample
-    )
+        )
+    else:
+        include_genes, gene_set_history, accuracy_history = optimize_gene_set(
+            probs, cluster_ids, gene_names, gene_set, subsample_cells=subsample
+        )
+
     timestr = time.strftime("%Y%m%d_%H%M%S")
     print(gene_names[include_genes])
     np.savez(
