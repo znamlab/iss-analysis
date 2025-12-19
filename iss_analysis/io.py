@@ -220,8 +220,8 @@ def get_genes_spots(project, mouse, add_ara_info=True, verbose=False, reload=Tru
 
 
 def filter_genes(gene_names):
-    # get rid of gene models etc
-    genes_Rik = np.array([re.search("Rik$", s) is not None for s in gene_names])
+    # get rid of gene models etc. Predicted, not annotated genes, etc. 
+    genes_Rik = np.array([re.search(r"Rik(\d+)?$", s) is not None for s in gene_names]) #exclude also copies of those genes like Rik1, Rik2...
     genes_Gm = np.array([re.search(r"Gm\d", s) is not None for s in gene_names])
     genes_LOC = np.array([re.search(r"LOC\d", s) is not None for s in gene_names])
     genes_AA = np.array(
