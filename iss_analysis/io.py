@@ -5,6 +5,7 @@ import scipy.sparse as ss
 import h5py
 import iss_preprocess as issp
 import anndata
+import scanpy as sc
 from pathlib import Path
 from iss_preprocess.pipeline.ara_registration import spots_ara_infos
 
@@ -276,13 +277,33 @@ def load_data_tasic_2018(datapath, filter_neurons=True):
     return exons_subset, gene_names
 
 
-def load_data_yao_2021(datapath):
+def load_data_yao_2021(datapath, area='VISp', include_subclasses=[
+        "L5 PT CTX",
+        "L5 IT CTX",
+        "L4/5 IT CTX",
+        "L6 IT CTX",
+        "L6 CT CTX",
+        "L5/6 NP CTX",
+        "Pvalb",
+        "Vip",
+        "L2/3 IT CTX",
+        "Lamp5",
+        "Sst",
+        "Sst Chodl",
+        "Sncg",
+        "Car3",
+        "L6b CTX",
+        "CR",
+        "Meis2",
+    ]):
     """
-    Load the scRNAseq data from Yao et al., "A taxonomy of transcriptomic cell
+    Load the smartSEQ part of the scRNAseq data from Yao et al., "A taxonomy of transcriptomic cell
     types across the isocortex and hippocampal formation", Cell, 2021.
 
     Args:
         datapath: path to the data
+        area: the cortical area to include. Defaults to the behaviour prior to changes. 
+        include_subclasses: list of subclasses to include. Defaults to the behaviour prior to changes. 
 
     Returns:
         exons_matrix: n cells x n genes matrix (numpy.ndarray) of read counts
@@ -309,44 +330,32 @@ def load_data_yao_2021(datapath):
         )
         return sparse_matrix
 
-    fname = f"{datapath}expression_matrix.hdf5"
+    fname = f"{datapath}/GSE185862_expression_matrix_SSv4.hdf5"
 
     h5f = h5py.File(fname, "r")
 
     exons = extract_sparse_matrix(h5f, "/data/exon")
-    samples = [sample.decode("utf-8") for sample in h5f["sample_names"]]
-    gene_names = [gene.decode("utf-8") for gene in h5f["gene_names"]]
+    # Bulk read the dataset into memory, much faster than 10' of I/O calls
+    samples = h5f["sample_names"][:]
+    gene_names = h5f["gene_names"][:]
+
+    # Decode all at once
+    samples = np.char.decode(samples, "utf-8")
+    gene_names = np.char.decode(gene_names, "utf-8")
+
     keep_genes = filter_genes(gene_names)
     gene_names = np.array(gene_names)[keep_genes]
     exons = exons[:, keep_genes]
 
-    fname_metadata = f"{datapath}metadata.csv"
+    fname_metadata = f"{datapath}/GSE185862_metadata_ssv4.csv"
 
     metadata = pd.read_csv(fname_metadata, low_memory=False)
-    include_classes = [
-        "L5 PT CTX",
-        "L5 IT CTX",
-        "L4/5 IT CTX",
-        "L6 IT CTX",
-        "L6 CT CTX",
-        "L5/6 NP CTX",
-        "Pvalb",
-        "Vip",
-        "L2/3 IT CTX",
-        "Lamp5",
-        "Sst",
-        "Sst Chodl",
-        "Sncg",
-        "Car3",
-        "L6b CTX",
-        "CR",
-        "Meis2",
-    ]
     metadata = metadata[
-        (metadata["region_label"] == "VISp")
-        & (metadata["subclass_label"].isin(include_classes))
-        & (metadata["sample_name"].isin(samples))
+        (metadata["region_label"] == area)
+        & (metadata["subclass_label"].isin(include_subclasses))
+        & (metadata["sample_name"].isin(samples)) #is the point just to verify that the dataset is the same?
     ]
+
     keep_cells = np.array(
         [sample in metadata["sample_name"].unique() for sample in samples]
     )
@@ -356,29 +365,123 @@ def load_data_yao_2021(datapath):
         exons.todense(), columns=["gene_" + gene for gene in gene_names]
     )
 
+    #TODO: do we need this? make a simpler exons_df straight away prob better
     exons_df["sample_name"] = samples
     exons_df = metadata.join(exons_df.set_index("sample_name"), on="sample_name")
 
-    return exons_df, pd.Series(gene_names)
+    #reformat
+    exons_df_reduced = exons_df.loc[:, ["subclass_label"] + [c for c in exons_df.columns if c.startswith("gene_")]]
+    gene_cols = [c for c in exons_df_reduced.columns if c.startswith("gene_")]
+    rename_map = {old: str(i) for i, old in enumerate(gene_cols)}
+    exons_df_reduced = exons_df_reduced.rename(columns=rename_map)
+
+    return exons_df_reduced, pd.Series(gene_names)
+
+def load_yao_2021_to_anndata(
+    datapath: str,
+    area: str = "VISp",
+    include_subclasses = (
+        "L5 PT CTX","L5 IT CTX","L4/5 IT CTX","L6 IT CTX","L6 CT CTX",
+        "L5/6 NP CTX","Pvalb","Vip","L2/3 IT CTX","Lamp5","Sst","Sst Chodl",
+        "Sncg","Car3","L6b CTX","CR","Meis2"
+    ),
+    add_qc_summaries: bool = True,  # add total counts per cell/gene
+):
+    """
+    Build an AnnData from Yao 2021 (SSv4) files.
+
+    Files expected in `datapath`:
+      - GSE185862_expression_matrix_SSv4.hdf5   (sparse counts)
+      - GSE185862_metadata_ssv4.csv             (cell metadata)
+
+    Returns
+    -------
+    adata : AnnData  (cells x genes)
+    """
+    # ---------- 1) Load counts (sparse) ----------
+    h5 = f"{datapath}/GSE185862_expression_matrix_SSv4.hdf5"
+    with h5py.File(h5, "r") as f:
+        # sparse CSC from /data/exon
+        x = f["/data/exon/x"][:]
+        i = f["/data/exon/i"][:]
+        p = f["/data/exon/p"][:]
+        n_cells, n_genes = f["/data/exon/dims"][:]
+        X = ss.csc_matrix((x, i, p), shape=(n_cells, n_genes), dtype=np.int32)
+
+        # bulk decode names (FAST)
+        samples_all = np.char.decode(f["sample_names"][:], "utf-8")
+        genes_all   = np.char.decode(f["gene_names"][:], "utf-8")
+
+    # ---------- 2) Optional gene filtering BEFORE making AnnData ----------
+    keep_gene_mask = np.asarray(filter_genes(genes_all), dtype=bool)
+    genes = genes_all[keep_gene_mask]
+    X = X[:, keep_gene_mask]
+
+
+    # ---------- 3) Load metadata & filter by area/subclass ----------
+    meta_path = f"{datapath}/GSE185862_metadata_ssv4.csv"
+    md = pd.read_csv(meta_path, low_memory=False)
+
+    # keep only rows for cells we actually have in the matrix
+    md = md[md["sample_name"].isin(samples_all)]
+
+    # filter by area + include_subclasses
+    
+    if include_subclasses is not None:
+        md = md[(md["region_label"] == area) & (md["subclass_label"].isin(include_subclasses))]
+    else:
+        md = md[(md["region_label"] == area)]
+
+    # ---------- 4) Align order: metadata to the HDF5 sample order ----------
+    # Build a boolean mask over samples_all telling which cells to keep
+    keep_cells_mask = np.isin(samples_all, md["sample_name"].unique())
+    # Subset matrix rows
+    X = X[keep_cells_mask, :]
+    # Subset/keep sample names in the same order as rows of X
+    samples = samples_all[keep_cells_mask]
+
+    # Reindex metadata to exactly match the matrix row order
+    md = md.set_index("sample_name").loc[samples].copy()
+
+    # AnnData likes CSR for row slicing later on
+    X = X.tocsr()
+
+    # ---------- 5) Build AnnData ----------
+    adata = sc.AnnData(
+        X=X,
+        obs=md,
+        var=pd.DataFrame(index=pd.Index(genes, name="gene"))
+    )
+    adata.obs_names = pd.Index(samples, name="cell")
+
+    # ---------- 6) Optional QC summaries ----------
+    if add_qc_summaries:
+        # fast on sparse
+        adata.obs["total_counts"] = np.ravel(adata.X.sum(axis=1))
+        adata.var["total_counts"] = np.ravel(adata.X.sum(axis=0))
+
+    return adata
 
 
 def expression_matrix_filter(expression_matrix, 
                              feature_matrix_label, 
-                             cell_extended,  
+                             cell_extended,
+                             taxa_subclass = None,
                              region_of_interest = 'MO-FRP', 
                              neurotransmitters = ['GABA', 'Glut']):
     '''
     Generates an anndata object that has all of the metadata information for cluster and ROI. Because
     of how the anndata files are saved, this corresponds just to a feature_matrix. 
-    I don't know why the number of entries for a feature matrix in the metadata
-    is smaller than in the data by about 1K, but I've decided to not really care for
-    now.  I've made a note and I'll probably raise an issue on their repo (scary)
+    The number of entries in the metadata is smaller, but the reason is that it carries a lot of NAs 
+    that are not in the expression matrix, so it's fine. Once you take that out, they have the same, 
+    and we merge them according to the 10X label. 
 
     Args: 
         expression_matrix(anndata): a feature_matrix as read by abc_cache
         feature_matrix_label(str): a string indicating the name of the feature matrix on the server. 
         cell_extended(df): a pandas df generated by build_extended_metadata
         other params: filters for the kinds of cell you want to keep. 
+
 
     Out: 
         filtered_expression_matrix(anndata): an anndata object with massive metadata. 
@@ -403,8 +506,20 @@ def expression_matrix_filter(expression_matrix,
     #joining
     expression_matrix.obs = expression_matrix.obs.join(cell_filtered, how='left')
 
-    #filtering for the right ROI and neurotransmitter
-    filtered_expression_matrix = expression_matrix[(expression_matrix.obs['region_of_interest_acronym']==region_of_interest) & (expression_matrix.obs['neurotransmitter'].isin(neurotransmitters))]
+    #filtering for the right ROI, class and neurotransmitter
+    #a mess because you cannot make a view of a view in aadata and we want to optimise memory
+    obs = expression_matrix.obs
+    mask = np.ones(obs.shape[0], dtype=bool)
+
+
+    if region_of_interest is not None:
+        mask &= (obs['region_of_interest_acronym']==region_of_interest)
+    if neurotransmitters is not None and len(neurotransmitters)>0:
+        mask &= obs['neurotransmitter'].isin(neurotransmitters).values
+    if taxa_subclass is not None and len(taxa_subclass)>0:
+        mask &= (obs['subclass'].isin(taxa_subclass)).values
+
+    filtered_expression_matrix = expression_matrix[mask,:]
 
     return filtered_expression_matrix
 
@@ -530,6 +645,7 @@ def main_yao_2023(abc_cache,
                   directory, 
                   filename_list, 
                   download_base,
+                  taxa_subclass = None,
                   region_of_interest = 'MO-FRP', 
                   neurotransmitters = ['GABA', 'Glut'], 
                   extract_csv = True):
@@ -584,6 +700,7 @@ def main_yao_2023(abc_cache,
         filtered_expression_matrix = expression_matrix_filter(expression_matrix, 
                                     feature_matrix_label = filename, 
                                     cell_extended = cell_extended,  
+                                    taxa_subclass = taxa_subclass,
                                     region_of_interest = region_of_interest, 
                                     neurotransmitters = neurotransmitters)
         filelist.append(filtered_expression_matrix)

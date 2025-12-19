@@ -15,6 +15,7 @@ setup(
         "scipy",
         "pandas",
         "scikit-learn",
+        "scanpy",
         "matplotlib",
         "tqdm",
         "pciSeq",
