@@ -264,6 +264,14 @@ def panel_table(datasets, panels, sizes=(100, 200, 400), eff=0.1):
     return pd.DataFrame(rows)
 
 
+def expression_budget_curve(ds, genes):
+    """Cumulative mean summed expression / cell as genes are added in the given order
+    (uses the dataset's per-gene mean expression). Returns array length n_genes."""
+    gmean = ds["X"].astype(np.float64).mean(0)
+    vals = [gmean[ds["gindex"][g]] for g in genes if g in ds["gindex"]]
+    return np.cumsum(vals)
+
+
 def region_accuracy(ds, genes, regions, sizes=(50, 100, 200, 300, 400), eff=0.1):
     """Accuracy vs panel size for several regions (means from all cells)."""
     rows = []
