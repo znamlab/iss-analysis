@@ -607,6 +607,45 @@ def greedy_accuracy(
     return order, hist
 
 
+def greedy_accuracy_single(Xf, A, B, true, seed_sel, n_select, verbose=True):
+    """Lazy (CELF) greedy maximising single-level classification accuracy. ``A,B`` are the NB
+    coefficients for the target grouping (subclass means -> 16-way, or cluster means ->
+    215-way) and ``true`` the matching labels. Pure objective: mean(argmax == true)."""
+    import heapq
+
+    N, G = Xf.shape
+    selected = list(dict.fromkeys(seed_sel))
+    sel_mask = np.zeros(G, dtype=bool)
+    sel_mask[selected] = True
+    Lc = _cell_loglik(Xf, A, B, selected).copy()
+
+    def acc_with(g):
+        return float(((Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g]).argmax(1) == true).mean())
+
+    base = float((Lc.argmax(1) == true).mean())
+    heap = []
+    for g in np.nonzero(~sel_mask)[0]:
+        heapq.heappush(heap, (-(acc_with(int(g)) - base), int(g)))
+
+    order, hist = list(selected), []
+    while len(selected) < min(n_select, G) and heap:
+        base = float((Lc.argmax(1) == true).mean())
+        while True:
+            neg_gain, g = heapq.heappop(heap)
+            if sel_mask[g]:
+                continue
+            a = acc_with(g)
+            if not heap or (a - base) >= -heap[0][0]:
+                break
+            heapq.heappush(heap, (-(a - base), g))
+        selected.append(g); sel_mask[g] = True; order.append(g)
+        Lc += np.outer(Xf[:, g], A[:, g]) + B[:, g]
+        hist.append(a)
+        if verbose and len(selected) % 25 == 0:
+            print(f"[greedy-acc] {len(selected)} genes  acc={a:.3f}", flush=True)
+    return order, hist
+
+
 def _mean_knn_overlap(D, R, k):
     """Mean fraction of each cell's k panel-neighbours that are also reference neighbours.
     D: (N,N) panel squared-distances; R: (N,N) bool reference adjacency (self=False)."""
@@ -732,6 +771,24 @@ def evaluate_curve(Xf, A, B, ordered_cand, true_clu, true_sub, c2s, sizes, visp_
     return pd.DataFrame(rows)
 
 
+def evaluate_curve_pure(Xf, Asub, Bsub, true_sub, Aclu, Bclu, true_clu, ordered_cand,
+                        sizes, visp_mask=None):
+    """Accuracy vs panel size using pure-level classifiers: 16-way subclass (Asub,Bsub) and
+    215-way cluster (Aclu,Bclu), reported side by side (overall + VISp)."""
+    rows = []
+    for n in sizes:
+        sel = list(ordered_cand[:n])
+        ps = _cell_loglik(Xf, Asub, Bsub, sel).argmax(1)
+        pc = _cell_loglik(Xf, Aclu, Bclu, sel).argmax(1)
+        row = {"n_genes": n, "subclass_acc": float((ps == true_sub).mean()),
+               "cluster_acc": float((pc == true_clu).mean())}
+        if visp_mask is not None and visp_mask.any():
+            row["subclass_acc_visp"] = float((ps[visp_mask] == true_sub[visp_mask]).mean())
+            row["cluster_acc_visp"] = float((pc[visp_mask] == true_clu[visp_mask]).mean())
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 # --------------------------------------------------------------------------------------
 # Orchestration
 # --------------------------------------------------------------------------------------
@@ -742,6 +799,7 @@ def run_selection(
     efficiency=0.1,
     n_select=400,
     lam=0.5,
+    level="hierarchical",
     min_max_subclass_mean=1.0,
     min_tau=0.3,
     drop_ieg=False,
@@ -761,6 +819,13 @@ def run_selection(
     ``max_candidates`` caps the greedy search pool to the top genes by marginal usefulness
     (conventional markers always kept). This keeps both greedy loops tractable; genes with
     low marginal MI are essentially never picked, so the cap barely affects the result.
+
+    ``level`` sets the accuracy objective for the classification greedy (Stage 4a):
+      - "hierarchical": cluster classifier, objective = subclass_rollup + lam*cluster (default)
+      - "subclass": pure 16-way subclass classifier, objective = subclass accuracy
+      - "cluster":  pure 215-way cluster classifier, objective = cluster accuracy
+    The candidate-pool cap and the saved curve adapt to ``level``; the curve always reports
+    both the pure subclass (16-way) and pure cluster accuracies for reference.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -781,9 +846,12 @@ def run_selection(
     # --- Stage 2: marginal MI ranking ---
     mu = marginal_usefulness(bundle, cand_idx, efficiency=efficiency, lam=lam, seed=seed)
 
+    # marginal score used for the pool cap (matches the optimisation level)
+    cap_key = {"subclass": "mi_subclass", "cluster": "mi_cluster"}.get(level, "marginal")
+
     # --- cap greedy search pool to top genes by marginal usefulness (keep conventional) ---
     if max_candidates and len(cand_idx) > max_candidates:
-        top = np.argsort(mu["marginal"])[::-1][:max_candidates]
+        top = np.argsort(mu[cap_key])[::-1][:max_candidates]
         keep = np.array(sorted(set(top.tolist()) | set(np.nonzero(conv_mask_cand)[0].tolist())))
         cand_idx = cand_idx[keep]
         cand_genes = cand_genes[keep]
@@ -799,7 +867,8 @@ def run_selection(
     # --- shared inputs for greedy ---
     Xcand = bundle["subsample_X"][:, cand_idx].astype("int32")
     Xds = resample_counts(Xcand, efficiency, rng=rng).astype("float32")
-    A, B = nb_coeffs(bundle["cluster_means"][:, cand_idx], efficiency)
+    Aclu, Bclu = nb_coeffs(bundle["cluster_means"][:, cand_idx], efficiency)
+    Asub, Bsub = nb_coeffs(bundle["subclass_means"][:, cand_idx], efficiency)
     c2s = bundle["cluster_to_subclass"].astype(int)
     true_clu = bundle["sub_cluster"].astype(int)
     true_sub = bundle["sub_subclass"].astype(int)
@@ -809,11 +878,18 @@ def run_selection(
     acc_cells = np.sort(rng.choice(
         Xds.shape[0], min(n_accuracy_cells, Xds.shape[0]), replace=False))
     if verbose:
-        print(f"[run] greedy accuracy on {acc_cells.size} cells, "
-              f"{cand_idx.size} candidates, {A.shape[0]} clusters", flush=True)
-    order_acc, hist_acc = greedy_accuracy(
-        Xds[acc_cells], A, B, true_clu[acc_cells], true_sub[acc_cells], c2s,
-        seed_sel, n_select, lam=lam, verbose=verbose)
+        print(f"[run] greedy accuracy ({level}) on {acc_cells.size} cells, "
+              f"{cand_idx.size} candidates", flush=True)
+    if level == "subclass":
+        order_acc, hist_acc = greedy_accuracy_single(
+            Xds[acc_cells], Asub, Bsub, true_sub[acc_cells], seed_sel, n_select, verbose=verbose)
+    elif level == "cluster":
+        order_acc, hist_acc = greedy_accuracy_single(
+            Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], seed_sel, n_select, verbose=verbose)
+    else:  # hierarchical
+        order_acc, hist_acc = greedy_accuracy(
+            Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], true_sub[acc_cells], c2s,
+            seed_sel, n_select, lam=lam, verbose=verbose)
 
     # --- Stage 4b: overlap greedy (on overlap cells) ---
     ov = graph["overlap_idx"]
@@ -837,7 +913,8 @@ def run_selection(
     fused_order = fused.sort_values("fused_rank")["cand"].to_numpy()
     sizes = [s for s in (50, 100, 150, 200, 250, 300, 350, 400) if s <= len(fused_order)]
     visp = (bundle["sub_region"] == "VISp")
-    curve = evaluate_curve(Xds, A, B, fused_order, true_clu, true_sub, c2s, sizes, visp)
+    curve = evaluate_curve_pure(Xds, Asub, Bsub, true_sub, Aclu, Bclu, true_clu,
+                                fused_order, sizes, visp)
     if verbose:
         print("[run] accuracy curve:\n" + curve.to_string(index=False), flush=True)
 
@@ -875,6 +952,9 @@ def main():
                         "(0.01 is unusably low, ~0.1-0.2 realistic)")
     p.add_argument("--n_select", type=int, default=400)
     p.add_argument("--lam", type=float, default=0.5)
+    p.add_argument("--level", default="hierarchical",
+                   choices=["hierarchical", "subclass", "cluster"],
+                   help="accuracy objective for the greedy: pure subclass/cluster, or hierarchical")
     p.add_argument("--min_max_subclass_mean", type=float, default=1.0)
     p.add_argument("--min_tau", type=float, default=0.3)
     p.add_argument("--drop_ieg", action="store_true")
@@ -897,7 +977,7 @@ def main():
 
     run_selection(
         bundle, args.out_dir, efficiency=args.efficiency, n_select=args.n_select,
-        lam=args.lam, min_max_subclass_mean=args.min_max_subclass_mean,
+        lam=args.lam, level=args.level, min_max_subclass_mean=args.min_max_subclass_mean,
         min_tau=args.min_tau, drop_ieg=args.drop_ieg, max_candidates=args.max_candidates,
         n_accuracy_cells=args.n_accuracy_cells, overlap_cells=args.overlap_cells,
         seed=args.seed, normalize=not args.no_normalize)
