@@ -544,16 +544,72 @@ def _cell_loglik(Xf, A, B, sel):
     return Xf[:, sel] @ A[:, sel].T + B[:, sel].sum(axis=1)[None, :]
 
 
+def _softmax_rows(L):
+    """Row-wise softmax with max-subtraction for numerical stability."""
+    M = L - L.max(axis=1, keepdims=True)
+    np.exp(M, out=M)
+    M /= M.sum(axis=1, keepdims=True)
+    return M
+
+
+def _posterior_objective(L, true_clu, true_sub, c2s, c2s_onehot, lam, kind="soft_acc"):
+    """Smooth NB-posterior objective for the hierarchical greedy.
+
+    ``L`` is the (N, C) cluster log-likelihood up to a *per-cell* additive constant; that
+    constant cancels in the softmax, so ``softmax(L)`` is exactly the NB posterior under a
+    uniform cluster prior (the same prior the argmax classifier uses). The subclass
+    posterior is the cluster posterior grouped by ``c2s_onehot`` (C, S).
+
+    kind:
+      "soft_acc" (default): mean P(true_sub) + lam*mean P(true_clu) -- smooth relaxation of
+          the 0/1 accuracy that is still reported downstream. Every gene moves the score for
+          every cell, so candidates are cleanly discriminated (no zero-gain ties).
+      "logpost": mean log P(true_sub) + lam*mean log P(true_clu) -- cross-entropy surrogate.
+      "accuracy": legacy hard 0/1 accuracy of the argmax (sub_acc + lam*clu_acc).
+    """
+    if kind == "accuracy":
+        pred = L.argmax(1)
+        sub = float((c2s[pred] == true_sub).mean())
+        clu = float((pred == true_clu).mean())
+        return sub + lam * clu
+    ar = np.arange(L.shape[0])
+    P = _softmax_rows(L)
+    p_clu = P[ar, true_clu]
+    p_sub = (P @ c2s_onehot)[ar, true_sub]
+    if kind == "logpost":
+        return float(np.log(p_sub + 1e-12).mean()) + lam * float(np.log(p_clu + 1e-12).mean())
+    return float(p_sub.mean()) + lam * float(p_clu.mean())
+
+
+def _posterior_objective_single(L, true, kind="soft_acc"):
+    """Single-level analogue of ``_posterior_objective`` (subclass- or cluster-level).
+
+    kind="soft_acc": mean P(true); "logpost": mean log P(true); "accuracy": mean(argmax==true).
+    """
+    if kind == "accuracy":
+        return float((L.argmax(1) == true).mean())
+    p = _softmax_rows(L)[np.arange(L.shape[0]), true]
+    if kind == "logpost":
+        return float(np.log(p + 1e-12).mean())
+    return float(p.mean())
+
+
 def greedy_accuracy(
     Xf, A, B, true_clu, true_sub, c2s, seed_sel, n_select,
-    lam=0.5, verbose=True,
+    lam=0.5, objective="soft_acc", verbose=True,
 ):
-    """Lazy (CELF) forward greedy maximising hierarchical accuracy
-    ``subclass_acc + lam*cluster_acc``.
+    """Lazy (CELF) forward greedy maximising a hierarchical classification objective.
 
-    Uses cached marginal gains in a max-heap: because marginal accuracy gains diminish as
-    the panel grows, stale gains are upper bounds, so each step only re-evaluates the few
-    top candidates instead of all of them. Each evaluation is a cheap (N, n_clu) argmax.
+    ``objective`` (see ``_posterior_objective``) selects the greedy score:
+      "soft_acc" (default): smooth NB-posterior relaxation of ``sub_acc + lam*cluster_acc``;
+      "logpost": cross-entropy surrogate; "accuracy": legacy hard 0/1 accuracy.
+    The smooth objectives give every candidate a non-zero marginal gain at every step, so
+    the greedy is not stuck breaking arbitrary ties among genes that flip no argmax. The
+    reported ``hist`` is always hard ``(sub_acc, clu_acc)`` for interpretability.
+
+    Uses cached marginal gains in a max-heap: because marginal gains diminish as the panel
+    grows, stale gains are upper bounds, so each step only re-evaluates the few top
+    candidates instead of all of them. Each evaluation is a cheap (N, n_clu) softmax/argmax.
 
     Xf: (N, G) float32 down-sampled counts on candidate genes.
     A, B: (n_clu, G) NB coefficients on candidate genes.
@@ -563,43 +619,48 @@ def greedy_accuracy(
     import heapq
 
     N, G = Xf.shape
+    Cn = A.shape[0]
+    S = int(c2s.max()) + 1
+    c2s_onehot = np.zeros((Cn, S), dtype="float32")
+    c2s_onehot[np.arange(Cn), c2s] = 1.0
     selected = list(dict.fromkeys(seed_sel))
     sel_mask = np.zeros(G, dtype=bool)
     sel_mask[selected] = True
     Lc = _cell_loglik(Xf, A, B, selected).copy()
 
     def score_with(g):
-        pred = (Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g]).argmax(1)
-        sub = float((c2s[pred] == true_sub).mean())
-        clu = float((pred == true_clu).mean())
-        return sub + lam * clu, sub, clu
+        return _posterior_objective(
+            Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g],
+            true_clu, true_sub, c2s, c2s_onehot, lam, objective)
 
     def cur_score():
+        return _posterior_objective(Lc, true_clu, true_sub, c2s, c2s_onehot, lam, objective)
+
+    def hard_acc():                                    # interpretable accuracy for reporting
         pred = Lc.argmax(1)
-        return float((c2s[pred] == true_sub).mean()) + lam * float((pred == true_clu).mean())
+        return float((c2s[pred] == true_sub).mean()), float((pred == true_clu).mean())
 
     base = cur_score()
-    heap = []                                          # (-marginal_gain, g, sub, clu)
+    heap = []                                          # (-marginal_gain, g)
     for g in np.nonzero(~sel_mask)[0]:
-        s, sub, clu = score_with(int(g))
-        heapq.heappush(heap, (-(s - base), int(g), sub, clu))
+        heapq.heappush(heap, (-(score_with(int(g)) - base), int(g)))
 
     order, hist = list(selected), []
     while len(selected) < min(n_select, G) and heap:
         base = cur_score()
         while True:                                    # lazy re-evaluation
-            neg_gain, g, sub, clu = heapq.heappop(heap)
+            neg_gain, g = heapq.heappop(heap)
             if sel_mask[g]:
                 continue
-            s, sub, clu = score_with(g)
-            gain = s - base
+            gain = score_with(g) - base
             if not heap or gain >= -heap[0][0]:
                 break
-            heapq.heappush(heap, (-gain, g, sub, clu))
+            heapq.heappush(heap, (-gain, g))
         selected.append(g)
         sel_mask[g] = True
         order.append(g)
         Lc += np.outer(Xf[:, g], A[:, g]) + B[:, g]
+        sub, clu = hard_acc()
         hist.append((sub, clu))
         if verbose and len(selected) % 25 == 0:
             print(f"[greedy-acc] {len(selected)} genes  sub={sub:.3f} clu={clu:.3f}",
@@ -607,10 +668,14 @@ def greedy_accuracy(
     return order, hist
 
 
-def greedy_accuracy_single(Xf, A, B, true, seed_sel, n_select, verbose=True):
-    """Lazy (CELF) greedy maximising single-level classification accuracy. ``A,B`` are the NB
-    coefficients for the target grouping (subclass means -> 16-way, or cluster means ->
-    215-way) and ``true`` the matching labels. Pure objective: mean(argmax == true)."""
+def greedy_accuracy_single(Xf, A, B, true, seed_sel, n_select, objective="soft_acc",
+                           verbose=True):
+    """Lazy (CELF) greedy maximising a single-level classification objective. ``A,B`` are the
+    NB coefficients for the target grouping (subclass means -> 16-way, or cluster means ->
+    215-way) and ``true`` the matching labels. ``objective`` (see
+    ``_posterior_objective_single``): "soft_acc" (default, mean true-class posterior),
+    "logpost" (cross-entropy), or "accuracy" (legacy hard 0/1). The smooth objectives avoid
+    zero-gain ties among genes that flip no argmax; ``hist`` is always hard accuracy."""
     import heapq
 
     N, G = Xf.shape
@@ -619,27 +684,32 @@ def greedy_accuracy_single(Xf, A, B, true, seed_sel, n_select, verbose=True):
     sel_mask[selected] = True
     Lc = _cell_loglik(Xf, A, B, selected).copy()
 
-    def acc_with(g):
-        return float(((Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g]).argmax(1) == true).mean())
+    def score_with(g):
+        return _posterior_objective_single(
+            Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g], true, objective)
 
-    base = float((Lc.argmax(1) == true).mean())
+    def cur_score():
+        return _posterior_objective_single(Lc, true, objective)
+
+    base = cur_score()
     heap = []
     for g in np.nonzero(~sel_mask)[0]:
-        heapq.heappush(heap, (-(acc_with(int(g)) - base), int(g)))
+        heapq.heappush(heap, (-(score_with(int(g)) - base), int(g)))
 
     order, hist = list(selected), []
     while len(selected) < min(n_select, G) and heap:
-        base = float((Lc.argmax(1) == true).mean())
+        base = cur_score()
         while True:
             neg_gain, g = heapq.heappop(heap)
             if sel_mask[g]:
                 continue
-            a = acc_with(g)
-            if not heap or (a - base) >= -heap[0][0]:
+            gain = score_with(g) - base
+            if not heap or gain >= -heap[0][0]:
                 break
-            heapq.heappush(heap, (-(a - base), g))
+            heapq.heappush(heap, (-gain, g))
         selected.append(g); sel_mask[g] = True; order.append(g)
         Lc += np.outer(Xf[:, g], A[:, g]) + B[:, g]
+        a = float((Lc.argmax(1) == true).mean())       # interpretable accuracy for reporting
         hist.append(a)
         if verbose and len(selected) % 25 == 0:
             print(f"[greedy-acc] {len(selected)} genes  acc={a:.3f}", flush=True)
@@ -800,6 +870,7 @@ def run_selection(
     n_select=400,
     lam=0.5,
     level="hierarchical",
+    accuracy_objective="soft_acc",
     min_max_subclass_mean=1.0,
     min_tau=0.3,
     drop_ieg=False,
@@ -826,6 +897,11 @@ def run_selection(
       - "cluster":  pure 215-way cluster classifier, objective = cluster accuracy
     The candidate-pool cap and the saved curve adapt to ``level``; the curve always reports
     both the pure subclass (16-way) and pure cluster accuracies for reference.
+
+    ``accuracy_objective`` sets the *score the Stage-4a greedy optimises* (the reported curve
+    stays hard accuracy regardless): "soft_acc" (default, smooth NB-posterior relaxation of
+    accuracy), "logpost" (cross-entropy), or "accuracy" (legacy hard 0/1). The smooth
+    objectives avoid arbitrary tie-breaking among genes that flip no argmax at a given step.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -878,18 +954,20 @@ def run_selection(
     acc_cells = np.sort(rng.choice(
         Xds.shape[0], min(n_accuracy_cells, Xds.shape[0]), replace=False))
     if verbose:
-        print(f"[run] greedy accuracy ({level}) on {acc_cells.size} cells, "
-              f"{cand_idx.size} candidates", flush=True)
+        print(f"[run] greedy accuracy ({level}/{accuracy_objective}) on {acc_cells.size} "
+              f"cells, {cand_idx.size} candidates", flush=True)
     if level == "subclass":
         order_acc, hist_acc = greedy_accuracy_single(
-            Xds[acc_cells], Asub, Bsub, true_sub[acc_cells], seed_sel, n_select, verbose=verbose)
+            Xds[acc_cells], Asub, Bsub, true_sub[acc_cells], seed_sel, n_select,
+            objective=accuracy_objective, verbose=verbose)
     elif level == "cluster":
         order_acc, hist_acc = greedy_accuracy_single(
-            Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], seed_sel, n_select, verbose=verbose)
+            Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], seed_sel, n_select,
+            objective=accuracy_objective, verbose=verbose)
     else:  # hierarchical
         order_acc, hist_acc = greedy_accuracy(
             Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], true_sub[acc_cells], c2s,
-            seed_sel, n_select, lam=lam, verbose=verbose)
+            seed_sel, n_select, lam=lam, objective=accuracy_objective, verbose=verbose)
 
     # --- Stage 4b: overlap greedy (on overlap cells) ---
     ov = graph["overlap_idx"]
@@ -955,6 +1033,10 @@ def main():
     p.add_argument("--level", default="hierarchical",
                    choices=["hierarchical", "subclass", "cluster"],
                    help="accuracy objective for the greedy: pure subclass/cluster, or hierarchical")
+    p.add_argument("--accuracy_objective", default="soft_acc",
+                   choices=["soft_acc", "logpost", "accuracy"],
+                   help="Stage-4a greedy score: smooth NB-posterior soft accuracy (default), "
+                        "cross-entropy (logpost), or legacy hard 0/1 accuracy")
     p.add_argument("--min_max_subclass_mean", type=float, default=1.0)
     p.add_argument("--min_tau", type=float, default=0.3)
     p.add_argument("--drop_ieg", action="store_true")
@@ -977,7 +1059,8 @@ def main():
 
     run_selection(
         bundle, args.out_dir, efficiency=args.efficiency, n_select=args.n_select,
-        lam=args.lam, level=args.level, min_max_subclass_mean=args.min_max_subclass_mean,
+        lam=args.lam, level=args.level, accuracy_objective=args.accuracy_objective,
+        min_max_subclass_mean=args.min_max_subclass_mean,
         min_tau=args.min_tau, drop_ieg=args.drop_ieg, max_candidates=args.max_candidates,
         n_accuracy_cells=args.n_accuracy_cells, overlap_cells=args.overlap_cells,
         seed=args.seed, normalize=not args.no_normalize)
