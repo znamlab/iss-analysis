@@ -134,10 +134,16 @@ def normalize_library(X, target=None):
     subset to the panel afterwards.
     """
     X = np.asarray(X)
-    tot = X.sum(1, keepdims=True).astype(np.float64)
+    tot = X.sum(1).astype(np.float64)
     target = float(np.median(tot)) if target is None else float(target)
-    tot[tot == 0] = 1.0
-    return np.minimum(np.rint(X * (target / tot)), 32767).astype(np.int16)
+    sf = (target / np.maximum(tot, 1.0)).astype(np.float32)        # per-cell scale factor
+    out = np.empty(X.shape, dtype=np.int16)                        # chunked to bound memory
+    for s in range(0, X.shape[0], 20000):
+        e = min(s + 20000, X.shape[0])
+        blk = X[s:e].astype(np.float32) * sf[s:e, None]
+        np.rint(blk, out=blk)
+        out[s:e] = np.minimum(blk, 32767).astype(np.int16)
+    return out
 
 
 def normalize_bundle(bundle):
@@ -177,6 +183,7 @@ def load_allen2020_streaming(
     drop_neighborhoods=("DG/SUB/CA", "Other"),
     drop_subclass_regex=r"(ENT|PPP|RHP|HPF|HATA|TPE|\bSUB\b)",
     include_classes=("Glutamatergic", "GABAergic"),
+    include_regions=None,
     seed=0,
     max_blocks=None,
     verbose=True,
@@ -226,6 +233,8 @@ def load_allen2020_streaming(
 
     # --- cell mask: neuron class + neocortex region/neighborhood ---
     mask = meta["class_label"].isin(include_classes).to_numpy()
+    if include_regions:                                   # keep ONLY these regions (e.g. VISp)
+        mask &= meta["region_label"].isin(include_regions).to_numpy()
     if drop_regions:
         mask &= ~meta["region_label"].isin(drop_regions).to_numpy()
     if drop_neighborhoods:
@@ -1655,8 +1664,9 @@ def main():
     p.add_argument("--n_select", type=int, default=400)
     p.add_argument("--lam", type=float, default=0.5)
     p.add_argument("--level", default="hierarchical",
-                   choices=["hierarchical", "subclass", "cluster"],
-                   help="accuracy objective for the greedy: pure subclass/cluster, or hierarchical")
+                   choices=["hierarchical", "subclass", "cluster", "manifold"],
+                   help="selection objective: pure subclass/cluster accuracy, hierarchical, "
+                        "or manifold (overlap-only, geneBasis-style; skips the accuracy greedy)")
     p.add_argument("--accuracy_objective", default="soft_acc",
                    choices=["soft_acc", "logpost", "accuracy"],
                    help="Stage-4a greedy score: smooth NB-posterior soft accuracy (default), "

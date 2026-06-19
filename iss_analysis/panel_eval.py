@@ -136,6 +136,15 @@ def load_allen2018(cache=CACHE2018):
                         np.array(["VISp"] * X.shape[0]))
 
 
+def load_bundle_ds(cache_dir, name):
+    """Standardise any saved Stage-0 bundle (e.g. a VISp-only cache) as a dataset dict.
+    Per-cell library-size normalisation is applied in ``_standardize``."""
+    b = pdsn.load_bundle(cache_dir)
+    return _standardize(name, b["subsample_X"], b["gene_names"], b["sub_subclass"],
+                        b["sub_cluster"], b["cluster_to_subclass"], b["subclass_labels"],
+                        b["cluster_labels"], b["sub_region"])
+
+
 def load_dataset(name):
     return load_allen2020() if name == "allen2020" else load_allen2018()
 
