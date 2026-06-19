@@ -552,7 +552,16 @@ def _softmax_rows(L):
     return M
 
 
-def _posterior_objective(L, true_clu, true_sub, c2s, c2s_onehot, lam, kind="soft_acc"):
+def _softmax_axis1(L):
+    """Softmax along axis 1 of a 3D array (N, K, b), max-subtracted for stability."""
+    M = L - L.max(axis=1, keepdims=True)
+    np.exp(M, out=M)
+    M /= M.sum(axis=1, keepdims=True)
+    return M
+
+
+def _posterior_objective(L, true_clu, true_sub, c2s, c2s_onehot, lam, kind="soft_acc",
+                         w_sub=1.0):
     """Smooth NB-posterior objective for the hierarchical greedy.
 
     ``L`` is the (N, C) cluster log-likelihood up to a *per-cell* additive constant; that
@@ -560,25 +569,30 @@ def _posterior_objective(L, true_clu, true_sub, c2s, c2s_onehot, lam, kind="soft
     uniform cluster prior (the same prior the argmax classifier uses). The subclass
     posterior is the cluster posterior grouped by ``c2s_onehot`` (C, S).
 
+    ``w_sub``/``lam`` weight the subclass and cluster terms: (w_sub=1, lam=0) is a
+    subclass-only objective, (w_sub=0, lam=1) a cluster-only objective, and the default
+    (w_sub=1, lam=0.5) the balanced objective.
+
     kind:
-      "soft_acc" (default): mean P(true_sub) + lam*mean P(true_clu) -- smooth relaxation of
-          the 0/1 accuracy that is still reported downstream. Every gene moves the score for
+      "soft_acc" (default): w_sub*mean P(true_sub) + lam*mean P(true_clu) -- smooth relaxation
+          of the 0/1 accuracy that is still reported downstream. Every gene moves the score for
           every cell, so candidates are cleanly discriminated (no zero-gain ties).
-      "logpost": mean log P(true_sub) + lam*mean log P(true_clu) -- cross-entropy surrogate.
-      "accuracy": legacy hard 0/1 accuracy of the argmax (sub_acc + lam*clu_acc).
+      "logpost": w_sub*mean log P(true_sub) + lam*mean log P(true_clu) -- cross-entropy surrogate.
+      "accuracy": legacy hard 0/1 accuracy of the argmax (w_sub*sub_acc + lam*clu_acc).
     """
     if kind == "accuracy":
         pred = L.argmax(1)
         sub = float((c2s[pred] == true_sub).mean())
         clu = float((pred == true_clu).mean())
-        return sub + lam * clu
+        return w_sub * sub + lam * clu
     ar = np.arange(L.shape[0])
     P = _softmax_rows(L)
     p_clu = P[ar, true_clu]
     p_sub = (P @ c2s_onehot)[ar, true_sub]
     if kind == "logpost":
-        return float(np.log(p_sub + 1e-12).mean()) + lam * float(np.log(p_clu + 1e-12).mean())
-    return float(p_sub.mean()) + lam * float(p_clu.mean())
+        return (w_sub * float(np.log(p_sub + 1e-12).mean())
+                + lam * float(np.log(p_clu + 1e-12).mean()))
+    return w_sub * float(p_sub.mean()) + lam * float(p_clu.mean())
 
 
 def _posterior_objective_single(L, true, kind="soft_acc"):
@@ -596,12 +610,16 @@ def _posterior_objective_single(L, true, kind="soft_acc"):
 
 def greedy_accuracy(
     Xf, A, B, true_clu, true_sub, c2s, seed_sel, n_select,
-    lam=0.5, objective="soft_acc", verbose=True,
+    lam=0.5, w_sub=1.0, objective="soft_acc", verbose=True,
 ):
-    """Lazy (CELF) forward greedy maximising a hierarchical classification objective.
+    """Lazy (CELF) forward greedy maximising a hierarchical classification objective
+    ``w_sub*subclass + lam*cluster``.
+
+    ``w_sub``/``lam`` weight the two levels: (w_sub=1, lam=0) is a subclass-only objective,
+    (w_sub=0, lam=1) a cluster-only objective; the default (w_sub=1, lam=0.5) is balanced.
 
     ``objective`` (see ``_posterior_objective``) selects the greedy score:
-      "soft_acc" (default): smooth NB-posterior relaxation of ``sub_acc + lam*cluster_acc``;
+      "soft_acc" (default): smooth NB-posterior relaxation of ``w_sub*sub_acc + lam*cluster_acc``;
       "logpost": cross-entropy surrogate; "accuracy": legacy hard 0/1 accuracy.
     The smooth objectives give every candidate a non-zero marginal gain at every step, so
     the greedy is not stuck breaking arbitrary ties among genes that flip no argmax. The
@@ -631,10 +649,11 @@ def greedy_accuracy(
     def score_with(g):
         return _posterior_objective(
             Lc + np.outer(Xf[:, g], A[:, g]) + B[:, g],
-            true_clu, true_sub, c2s, c2s_onehot, lam, objective)
+            true_clu, true_sub, c2s, c2s_onehot, lam, objective, w_sub=w_sub)
 
     def cur_score():
-        return _posterior_objective(Lc, true_clu, true_sub, c2s, c2s_onehot, lam, objective)
+        return _posterior_objective(
+            Lc, true_clu, true_sub, c2s, c2s_onehot, lam, objective, w_sub=w_sub)
 
     def hard_acc():                                    # interpretable accuracy for reporting
         pred = Lc.argmax(1)
@@ -799,6 +818,552 @@ def reciprocal_rank_fusion(order_acc, order_ovl, conv_mask_cand, kappa=60):
 
 
 # --------------------------------------------------------------------------------------
+# Stage 4d - plug-and-play optimizers (swappable objective x search strategy)
+# --------------------------------------------------------------------------------------
+#
+# Selection is factored into two interchangeable pieces so new ideas drop in cheaply:
+#
+#   * an OBJECTIVE  - *what* makes a panel good (classification accuracy, manifold
+#     overlap, ...). It exposes a small *incremental* interface so a search strategy can
+#     grow a panel one (or a few) genes at a time without recomputing from scratch. Gene
+#     indices are positions in the candidate pool (0..G-1).
+#
+#   * a SEARCH STRATEGY - *how* the panel is grown (greedy / stochastic random walks /
+#     stochastic-greedy / ...). A strategy only ever talks to the objective through the
+#     interface below, so any strategy composes with any objective.
+#
+# ``greedy_accuracy`` / ``greedy_overlap`` above are the original hand-fused (objective +
+# CELF greedy) implementations and remain the default. The classes/strategies here express
+# the same maths through the generic interface and add the stochastic optimizers. Register
+# a new strategy in ``SELECTORS`` (or subclass ``SelectionObjective``) and it is usable
+# from ``run_selection(acc_strategy=...)`` immediately.
+
+
+class SelectionObjective:
+    """Incremental forward-selection objective. ``state`` is opaque to the strategy; only
+    these methods are used (gene indices are candidate-pool positions 0..n_genes-1):
+
+    ===================  =====================================================
+    ``init(seed)``       -> state            new panel, force-including ``seed``
+    ``add(state, genes)``-> state            commit gene(s) (mutates + returns state)
+    ``clone(state)``     -> state            independent copy (restarts / branching)
+    ``selected(state)``  -> list[int]        genes chosen so far, in selection order
+    ``score(state)``     -> float            objective value (higher = better)
+    ``gain_one(s, g)``   -> float            exact marginal gain of adding gene ``g``
+    ``gain_all(state)``  -> (G,) np.ndarray  marginal gain of every gene (-inf if chosen)
+    ===================  =====================================================
+    """
+
+    n_genes = 0
+
+    def init(self, seed=()):
+        raise NotImplementedError
+
+    def add(self, state, genes):
+        raise NotImplementedError
+
+    def clone(self, state):
+        raise NotImplementedError
+
+    def selected(self, state):
+        return list(state["order"])
+
+    def score(self, state):
+        raise NotImplementedError
+
+    def gain_one(self, state, g, base=None):
+        raise NotImplementedError
+
+    def gain_all(self, state):
+        raise NotImplementedError
+
+
+class AccuracyObjective(SelectionObjective):
+    """Naive-Bayes accuracy objective for forward selection, matching the greedy design
+    (``greedy_accuracy`` / ``greedy_accuracy_single`` / ``_posterior_objective``).
+
+    ``score = w_sub * <subclass term> + lam * <cluster term>``, where each term is a function
+    (``objective``) of the per-cell NB posterior (``softmax`` of the NB log-likelihood = the
+    posterior under a uniform prior):
+
+      - ``"soft_acc"`` (default): mean P(true) -- smooth relaxation of 0/1 accuracy that
+        avoids zero-gain argmax ties (every gene moves every cell's score).
+      - ``"logpost"``: mean log P(true) -- cross-entropy surrogate.
+      - ``"accuracy"``: legacy hard 0/1 accuracy of the argmax.
+
+    The CLUSTER term uses the cluster classifier (``A``, ``B`` from cluster means -> ``Lc``).
+    The SUBCLASS term uses the DIRECT subclass classifier (``Asub``, ``Bsub`` from subclass
+    means -> ``Ls``) when those are given, else the cluster->subclass rollup ``c2s``. Marginal
+    gains use rank-1 updates of the cached log-likelihoods; ``gain_all`` evaluates every
+    candidate in gene blocks sized so the transient ``(N, n_clu, block)`` array stays under
+    ``mem_elements``.
+    """
+
+    def __init__(self, Xf, A, B, true_clu, true_sub, c2s, Asub=None, Bsub=None,
+                 w_sub=1.0, lam=0.5, objective="soft_acc", mem_elements=1e8):
+        self.Xf = np.ascontiguousarray(Xf, dtype="float32")
+        self.A = np.asarray(A, dtype="float32")
+        self.B = np.asarray(B, dtype="float32")
+        self.true_clu = np.asarray(true_clu)
+        self.true_sub = np.asarray(true_sub)
+        self.c2s = np.asarray(c2s)
+        self.direct = Asub is not None and Bsub is not None     # direct subclass classifier?
+        self.Asub = np.asarray(Asub, dtype="float32") if self.direct else None
+        self.Bsub = np.asarray(Bsub, dtype="float32") if self.direct else None
+        self.w_sub, self.lam, self.objective = float(w_sub), float(lam), objective
+        self.N, self.n_genes = self.Xf.shape
+        self.C = self.A.shape[0]
+        self.ar = np.arange(self.N)
+        if not self.direct:                                     # rollup one-hot (C, S)
+            S = int(self.c2s.max()) + 1
+            self.c2s_onehot = np.zeros((self.C, S), dtype="float32")
+            self.c2s_onehot[np.arange(self.C), self.c2s] = 1.0
+        self.block = max(1, int(mem_elements // max(1, self.N * self.C)))
+
+    def init(self, seed=()):
+        seed = list(dict.fromkeys(int(g) for g in seed))
+        st = {"Lc": _cell_loglik(self.Xf, self.A, self.B, seed).astype("float32"),
+              "mask": np.zeros(self.n_genes, dtype=bool), "order": list(seed)}
+        st["mask"][seed] = True
+        if self.direct:
+            st["Ls"] = _cell_loglik(self.Xf, self.Asub, self.Bsub, seed).astype("float32")
+        return st
+
+    def clone(self, state):
+        s = {"Lc": state["Lc"].copy(), "mask": state["mask"].copy(),
+             "order": list(state["order"])}
+        if self.direct:
+            s["Ls"] = state["Ls"].copy()
+        return s
+
+    def add(self, state, genes):
+        if np.isscalar(genes):
+            genes = [genes]
+        for g in genes:
+            g = int(g)
+            if state["mask"][g]:
+                continue
+            state["Lc"] += np.outer(self.Xf[:, g], self.A[:, g]) + self.B[:, g]
+            if self.direct:
+                state["Ls"] += np.outer(self.Xf[:, g], self.Asub[:, g]) + self.Bsub[:, g]
+            state["mask"][g] = True
+            state["order"].append(g)
+        return state
+
+    def _terms(self, Lc, Ls):
+        """(subclass_term, cluster_term) under self.objective from cached (2D) log-liks."""
+        if self.objective == "accuracy":
+            clu = float((Lc.argmax(1) == self.true_clu).mean())
+            sub = (float((Ls.argmax(1) == self.true_sub).mean()) if self.direct
+                   else float((self.c2s[Lc.argmax(1)] == self.true_sub).mean()))
+            return sub, clu
+        Pc = _softmax_rows(Lc)
+        p_clu = Pc[self.ar, self.true_clu]
+        p_sub = (_softmax_rows(Ls)[self.ar, self.true_sub] if self.direct
+                 else (Pc @ self.c2s_onehot)[self.ar, self.true_sub])
+        if self.objective == "logpost":
+            return float(np.log(p_sub + 1e-12).mean()), float(np.log(p_clu + 1e-12).mean())
+        return float(p_sub.mean()), float(p_clu.mean())
+
+    def detail(self, state):
+        """Hard (subclass_acc, cluster_acc) of the current panel (for reporting)."""
+        clu = float((state["Lc"].argmax(1) == self.true_clu).mean())
+        sub = (float((state["Ls"].argmax(1) == self.true_sub).mean()) if self.direct
+               else float((self.c2s[state["Lc"].argmax(1)] == self.true_sub).mean()))
+        return sub, clu
+
+    def score(self, state):
+        sub, clu = self._terms(state["Lc"], state.get("Ls"))
+        return self.w_sub * sub + self.lam * clu
+
+    def gain_one(self, state, g, base=None):
+        if base is None:
+            base = self.score(state)
+        Lc2 = state["Lc"] + (np.outer(self.Xf[:, g], self.A[:, g]) + self.B[:, g])
+        Ls2 = (state["Ls"] + (np.outer(self.Xf[:, g], self.Asub[:, g]) + self.Bsub[:, g])
+               if self.direct else None)
+        sub, clu = self._terms(Lc2, Ls2)
+        return (self.w_sub * sub + self.lam * clu) - base
+
+    def gain_all(self, state):
+        base = self.score(state)
+        ar = self.ar
+        gains = np.full(self.n_genes, -np.inf, dtype="float32")
+        todo = np.nonzero(~state["mask"])[0]
+        for s in range(0, todo.size, self.block):
+            gg = todo[s:s + self.block]
+            candC = (state["Lc"][:, :, None]
+                     + self.Xf[:, gg][:, None, :] * self.A[:, gg][None, :, :]
+                     + self.B[:, gg][None, :, :])               # (N, C, b)
+            candS = None
+            if self.direct:
+                candS = (state["Ls"][:, :, None]
+                         + self.Xf[:, gg][:, None, :] * self.Asub[:, gg][None, :, :]
+                         + self.Bsub[:, gg][None, :, :])         # (N, S, b)
+            if self.objective == "accuracy":
+                predc = candC.argmax(1)                          # (N, b)
+                clu = (predc == self.true_clu[:, None]).mean(0)
+                sub = ((candS.argmax(1) == self.true_sub[:, None]).mean(0) if self.direct
+                       else (self.c2s[predc] == self.true_sub[:, None]).mean(0))
+                gains[gg] = (self.w_sub * sub + self.lam * clu) - base
+                continue
+            Pc = _softmax_axis1(candC)
+            p_clu = Pc[ar, self.true_clu, :]                     # (N, b)
+            if self.direct:
+                p_sub = _softmax_axis1(candS)[ar, self.true_sub, :]
+            else:
+                p_sub = np.einsum("ncb,cs->nsb", Pc, self.c2s_onehot)[ar, self.true_sub, :]
+            if self.objective == "logpost":
+                gains[gg] = (self.w_sub * np.log(p_sub + 1e-12).mean(0)
+                             + self.lam * np.log(p_clu + 1e-12).mean(0)) - base
+            else:
+                gains[gg] = (self.w_sub * p_sub.mean(0) + self.lam * p_clu.mean(0)) - base
+        return gains
+
+
+class OverlapObjective(SelectionObjective):
+    """geneBasis-style manifold-preservation objective (same maths as ``greedy_overlap``):
+    the mean fraction of each cell's ``k`` panel-space neighbours that are also neighbours
+    in the full-transcriptome reference kNN graph. The panel squared-distance matrix ``D``
+    is maintained incrementally. ``gain_all`` is O(G * N^2), so prefer small ``overlap``
+    cell counts when pairing this objective with the stochastic strategies.
+    """
+
+    def __init__(self, Xf_ov, ref_knn, k=15):
+        self.t = np.log1p(np.asarray(Xf_ov, dtype="float32"))   # (N, G)
+        self.N, self.n_genes = self.t.shape
+        self.k = int(k)
+        R = np.zeros((self.N, self.N), dtype=bool)
+        R[np.arange(self.N)[:, None], ref_knn] = True
+        self.R = R
+
+    def init(self, seed=()):
+        seed = list(dict.fromkeys(int(g) for g in seed))
+        D = np.zeros((self.N, self.N), dtype="float32")
+        for g in seed:
+            d = self.t[:, g]
+            D += (d[:, None] - d[None, :]) ** 2
+        mask = np.zeros(self.n_genes, dtype=bool)
+        mask[seed] = True
+        return {"D": D, "mask": mask, "order": list(seed)}
+
+    def clone(self, state):
+        return {"D": state["D"].copy(), "mask": state["mask"].copy(),
+                "order": list(state["order"])}
+
+    def add(self, state, genes):
+        if np.isscalar(genes):
+            genes = [genes]
+        for g in genes:
+            g = int(g)
+            if state["mask"][g]:
+                continue
+            d = self.t[:, g]
+            state["D"] += (d[:, None] - d[None, :]) ** 2
+            state["mask"][g] = True
+            state["order"].append(g)
+        return state
+
+    def score(self, state):
+        return _mean_knn_overlap(state["D"], self.R, self.k)
+
+    def gain_one(self, state, g, base=None):
+        if base is None:
+            base = self.score(state)
+        d = self.t[:, g]
+        return _mean_knn_overlap(state["D"] + (d[:, None] - d[None, :]) ** 2,
+                                 self.R, self.k) - base
+
+    def gain_all(self, state):
+        base = self.score(state)
+        gains = np.full(self.n_genes, -np.inf, dtype="float32")
+        for g in np.nonzero(~state["mask"])[0]:
+            gains[g] = self.gain_one(state, int(g), base)
+        return gains
+
+
+# ---- search strategies (objective-agnostic) -----------------------------------------
+
+def select_greedy(obj, n_select, seed_sel=(), rng=None, verbose=False,
+                  label="greedy", log_every=25):
+    """Lazy (CELF) forward greedy: repeatedly add the single highest-marginal-gain gene.
+    The generic equivalent of ``greedy_accuracy`` / ``greedy_overlap``. ``rng`` is accepted
+    for a uniform strategy signature but unused (greedy is deterministic).
+    Returns (order, hist) where ``hist`` are objective scores after each addition.
+    """
+    import heapq
+
+    state = obj.init(seed_sel)
+    gains = obj.gain_all(state)
+    heap = [(-float(gains[g]), int(g)) for g in np.nonzero(np.isfinite(gains))[0]]
+    heapq.heapify(heap)
+    target, hist = min(n_select, obj.n_genes), []
+    while len(state["order"]) < target and heap:
+        base = obj.score(state)
+        while True:                                          # lazy re-evaluation
+            neg, g = heapq.heappop(heap)
+            if state["mask"][g]:
+                continue
+            gain = obj.gain_one(state, g, base)
+            if not heap or gain >= -heap[0][0]:
+                break
+            heapq.heappush(heap, (-gain, g))
+        obj.add(state, g)
+        hist.append(obj.score(state))
+        if verbose and len(state["order"]) % log_every == 0:
+            print(f"[{label}] {len(state['order'])} genes  score={hist[-1]:.4f}",
+                  flush=True)
+    return list(state["order"]), hist
+
+
+def _lazy_topk(obj, state, heap, top_k, base):
+    """CELF generalised to the top-``k`` genes: lazily re-evaluate cached upper-bound gains
+    (valid under diminishing-returns) until the ``top_k`` genes with the largest *true*
+    current marginal gain are confirmed. Mutates ``heap`` (a heapified list of
+    ``(-gain, gene)``); returns the confirmed ``[(gene, true_gain), ...]``, best first.
+    """
+    import heapq
+
+    confirmed = []
+    while len(confirmed) < top_k and heap:
+        neg, g = heapq.heappop(heap)
+        if state["mask"][g]:
+            continue
+        gain = obj.gain_one(state, g, base)
+        if not heap or gain >= -heap[0][0]:
+            confirmed.append((g, gain))
+        else:
+            heapq.heappush(heap, (-gain, g))
+    return confirmed
+
+
+def _limit_worker_threads():
+    """ProcessPoolExecutor initializer: pin BLAS/OpenMP to one thread per worker so the
+    process-level parallelism over walks doesn't oversubscribe cores (best-effort; for full
+    effect also export OMP_NUM_THREADS=1 in the parent before importing numpy)."""
+    import os
+    for v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+              "NUMEXPR_NUM_THREADS"):
+        os.environ[v] = "1"
+
+
+def available_cpus():
+    """CPUs actually usable by this process -- respects cgroup/SLURM affinity (so it returns
+    the cores allotted to the job, not the machine total that ``os.cpu_count()`` reports)."""
+    import os
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except AttributeError:                       # not on Linux
+        return max(1, os.cpu_count() or 1)
+
+
+def _walk_once(obj, n_select, seed_sel, top_k, step_choices, start_heap, seed):
+    """Run ONE random walk from a copy of the shared starting heap. Module-level (picklable)
+    so it can run in a worker process. Returns ``(final_score, order, hist)``.
+
+    Each cycle ranks the unselected genes by current marginal gain (lazy top-``k``), then
+    adds ``n_add`` of the ``top_k`` chosen uniformly at random, with ``n_add`` itself drawn
+    uniformly from ``step_choices`` (1, 2 or 3 picks per cycle).
+    """
+    import heapq
+
+    rng = np.random.default_rng(seed)
+    step_choices = np.asarray(step_choices)
+    target = min(n_select, obj.n_genes)
+    state = obj.init(seed_sel)
+    heap = list(start_heap)                                  # copy; tuples are immutable
+    hist = []
+    while len(state["order"]) < target and heap:
+        base = obj.score(state)
+        confirmed = _lazy_topk(obj, state, heap, top_k, base)
+        if not confirmed:
+            break
+        cands = [g for g, _ in confirmed]
+        remaining = target - len(state["order"])
+        n_add = int(min(rng.choice(step_choices), remaining, len(cands)))   # 1, 2 or 3
+        pick = set(rng.choice(len(cands), size=n_add, replace=False).tolist())
+        # return the un-chosen top-k genes to the heap with their fresh (exact) gains
+        for i, (g, gain) in enumerate(confirmed):
+            if i not in pick:
+                heapq.heappush(heap, (-gain, g))
+        obj.add(state, [cands[i] for i in pick])
+        hist.append(obj.score(state))
+    return obj.score(state), list(state["order"]), hist
+
+
+def _walk_batch(obj, n_select, seed_sel, top_k, step_choices, start_heap, seeds):
+    """Run a batch of walks in one worker (amortises the per-task pickling of ``obj``)."""
+    return [_walk_once(obj, n_select, seed_sel, top_k, step_choices, start_heap, s)
+            for s in seeds]
+
+
+def select_stochastic_walk(obj, n_select, seed_sel=(), rng=None, n_walks=8, top_k=15,
+                           step_choices=(1, 2, 3), n_jobs=1, verbose=False, label="walk"):
+    """Randomized-greedy panel search with restarts. Each *walk* repeatedly:
+
+      1. ranks all not-yet-selected genes by their marginal gain given the current panel,
+      2. takes the ``top_k`` most informative, and
+      3. adds ``n_add`` of them chosen uniformly at random, where ``n_add`` is drawn
+         uniformly from ``step_choices`` (default 1, 2 or 3 picks per cycle),
+
+    until the panel reaches ``n_select``; ``n_walks`` independent walks are run and the one
+    with the best final objective score is returned. The randomness lets the search leave
+    the single trajectory pure greedy is locked into and probe correlated-gene trade-offs
+    greedy never revisits, while the ``top_k`` gate keeps every step near-optimal.
+
+    The top-``k`` per step is found with a CELF-style lazy heap (``_lazy_topk``); the
+    starting per-gene gains are identical across walks, so they are computed once and the
+    heap is copied per walk. Walks are independent, so ``n_jobs > 1`` (or ``-1`` for all
+    cores) runs them across processes via a ``ProcessPoolExecutor`` -- results are identical
+    to the sequential run because every walk is seeded deterministically from ``rng``.
+    (For best multi-core scaling set ``OMP_NUM_THREADS=1`` so BLAS doesn't oversubscribe.)
+
+    Returns ``(order, hist, info)`` -- ``order`` is the best walk's selection order, ``hist``
+    its per-cycle scores, and ``info`` carries every walk's final score and selection order.
+    """
+    rng = np.random.default_rng() if rng is None else rng
+
+    # gains at the shared start are identical for every walk -> compute the heap once
+    seed_state = obj.init(seed_sel)
+    base_gains = obj.gain_all(seed_state)
+    start_heap = sorted((-float(base_gains[g]), int(g))
+                        for g in np.nonzero(np.isfinite(base_gains))[0])
+    # deterministic, independent per-walk seeds (so n_jobs never changes the result)
+    walk_seeds = [int(s) for s in rng.integers(0, 2**63 - 1, size=n_walks)]
+
+    if n_jobs == 1:
+        results = [_walk_once(obj, n_select, seed_sel, top_k, step_choices, start_heap, s)
+                   for s in walk_seeds]
+    else:
+        from concurrent.futures import ProcessPoolExecutor
+        n_jobs = available_cpus() if n_jobs in (-1, None) else int(n_jobs)
+        n_jobs = max(1, min(n_jobs, n_walks))
+        idx_chunks = [list(range(i, n_walks, n_jobs)) for i in range(n_jobs)]  # round-robin
+        results = [None] * n_walks
+        with ProcessPoolExecutor(max_workers=n_jobs,
+                                 initializer=_limit_worker_threads) as ex:
+            futs = [(idxs, ex.submit(_walk_batch, obj, n_select, seed_sel, top_k,
+                                     step_choices, start_heap,
+                                     [walk_seeds[j] for j in idxs]))
+                    for idxs in idx_chunks if idxs]
+            for idxs, f in futs:                              # scatter back into walk order
+                for j, r in zip(idxs, f.result()):
+                    results[j] = r
+
+    walk_finals = np.array([r[0] for r in results])
+    best_i = int(walk_finals.argmax())
+    info = {"walk_finals": walk_finals, "walk_orders": [r[1] for r in results],
+            "best_final": float(walk_finals[best_i]), "best_walk": best_i}
+    if verbose:
+        print(f"[{label}] {n_walks} walks (n_jobs={n_jobs}): best={walk_finals[best_i]:.4f} "
+              f"mean={walk_finals.mean():.4f} worst={walk_finals.min():.4f}", flush=True)
+    return results[best_i][1], results[best_i][2], info
+
+
+def select_stochastic_greedy(obj, n_select, seed_sel=(), rng=None, eps=0.05,
+                             sample_size=None, verbose=False, label="sgreedy",
+                             log_every=25):
+    """Lazier-than-greedy selection (Mirzasoleiman et al., 2015). Each step scores only a
+    random subset of the unselected genes of size ``sample_size`` (default
+    ``ceil(G/k * ln(1/eps))``) and adds the best of that subset. Retains a
+    ``(1 - 1/e - eps)`` expected-quality guarantee at a fraction of greedy's evaluations,
+    while injecting mild diversity. Returns (order, hist).
+    """
+    rng = np.random.default_rng() if rng is None else rng
+    state = obj.init(seed_sel)
+    target = min(n_select, obj.n_genes)
+    if sample_size is None:
+        k = max(1, target - len(state["order"]))
+        sample_size = int(np.ceil(obj.n_genes / k * np.log(1.0 / eps)))
+    hist = []
+    while len(state["order"]) < target:
+        avail = np.nonzero(~state["mask"])[0]
+        if avail.size == 0:
+            break
+        subset = rng.choice(avail, size=min(sample_size, avail.size), replace=False)
+        base = obj.score(state)
+        gains = np.array([obj.gain_one(state, int(g), base) for g in subset])
+        obj.add(state, int(subset[int(gains.argmax())]))
+        hist.append(obj.score(state))
+        if verbose and len(state["order"]) % log_every == 0:
+            print(f"[{label}] {len(state['order'])} genes  score={hist[-1]:.4f}",
+                  flush=True)
+    return list(state["order"]), hist
+
+
+# Strategy registry: name -> callable(obj, n_select, seed_sel=, rng=, verbose=, **kw).
+# Each returns (order, hist) or (order, hist, info); ``select_panel`` normalises that.
+SELECTORS = {
+    "greedy": select_greedy,
+    "stochastic_walk": select_stochastic_walk,
+    "stochastic_greedy": select_stochastic_greedy,
+}
+
+
+def select_panel(objective, n_select, seed_sel=(), strategy="greedy", rng=None,
+                 verbose=False, **kwargs):
+    """Plug-and-play dispatcher: run ``strategy`` (a key of ``SELECTORS`` or any callable
+    with the same signature) against ``objective``. Returns ``(order, hist, info)`` where
+    ``info`` is ``{}`` for strategies that don't produce one.
+    """
+    fn = strategy if callable(strategy) else SELECTORS[strategy]
+    out = fn(objective, n_select, seed_sel=seed_sel, rng=rng, verbose=verbose, **kwargs)
+    if len(out) == 3:
+        return out
+    order, hist = out
+    return order, hist, {}
+
+
+def _restart_batch(strategy, obj, n_select, seed_sel, kwargs, seeds):
+    """Worker: run a single-shot `strategy` once per seed; return (train_final, order) each."""
+    fn = strategy if callable(strategy) else SELECTORS[strategy]
+    out = []
+    for s in seeds:
+        res = fn(obj, n_select, seed_sel=seed_sel, rng=np.random.default_rng(int(s)), **kwargs)
+        order, hist = res[0], res[1]
+        final = float(hist[-1]) if len(hist) else float(obj.score(obj.init(seed_sel)))
+        out.append((final, list(order)))
+    return out
+
+
+def best_of_restarts(strategy, obj, n_select, seed_sel=(), n_restarts=100, rng=None,
+                     n_jobs=1, strategy_kwargs=None, verbose=False, label=None):
+    """Run ``n_restarts`` independent runs of a single-shot stochastic ``strategy`` (e.g.
+    ``"stochastic_greedy"``), parallelised over processes, and keep the run with the best
+    final TRAIN objective -- the external-restart analogue of the internal restarts that
+    ``stochastic_walk`` already does. Returns ``(best_order, finals, orders)`` (all runs'
+    final scores and orders, for distribution / train-vs-val analysis). Determinism is
+    independent of ``n_jobs`` (per-restart seeds are derived from ``rng``).
+    """
+    rng = np.random.default_rng() if rng is None else rng
+    kwargs = dict(strategy_kwargs or {})
+    seeds = [int(s) for s in rng.integers(0, 2**63 - 1, size=n_restarts)]
+    label = label or (strategy if isinstance(strategy, str) else "restart")
+    if n_jobs == 1:
+        results = _restart_batch(strategy, obj, n_select, seed_sel, kwargs, seeds)
+    else:
+        from concurrent.futures import ProcessPoolExecutor
+        n_jobs = available_cpus() if n_jobs in (-1, None) else int(n_jobs)
+        n_jobs = max(1, min(n_jobs, n_restarts))
+        idx_chunks = [list(range(i, n_restarts, n_jobs)) for i in range(n_jobs)]
+        results = [None] * n_restarts
+        with ProcessPoolExecutor(max_workers=n_jobs, initializer=_limit_worker_threads) as ex:
+            futs = [(idxs, ex.submit(_restart_batch, strategy, obj, n_select, seed_sel,
+                                     kwargs, [seeds[j] for j in idxs]))
+                    for idxs in idx_chunks if idxs]
+            for idxs, f in futs:
+                for j, r in zip(idxs, f.result()):
+                    results[j] = r
+    finals = np.array([r[0] for r in results])
+    orders = [r[1] for r in results]
+    bi = int(np.nanargmax(finals))
+    if verbose:
+        print(f"[{label}] {n_restarts} restarts (n_jobs={n_jobs}): best={finals[bi]:.4f} "
+              f"mean={np.nanmean(finals):.4f} worst={np.nanmin(finals):.4f}", flush=True)
+    return orders[bi], finals, orders
+
+
+# --------------------------------------------------------------------------------------
 # Stage 5 - evaluation
 # --------------------------------------------------------------------------------------
 
@@ -869,6 +1434,7 @@ def run_selection(
     efficiency=0.1,
     n_select=400,
     lam=0.5,
+    w_sub=1.0,
     level="hierarchical",
     accuracy_objective="soft_acc",
     min_max_subclass_mean=1.0,
@@ -882,6 +1448,10 @@ def run_selection(
     k=15,
     seed=0,
     normalize=True,
+    acc_strategy="greedy",
+    acc_strategy_kwargs=None,
+    ovl_strategy="greedy",
+    ovl_strategy_kwargs=None,
     verbose=True,
 ):
     """Full Stage 1-5 pipeline. Writes ``gene_ranking.csv``, ``accuracy_curve.csv`` and
@@ -892,7 +1462,7 @@ def run_selection(
     low marginal MI are essentially never picked, so the cap barely affects the result.
 
     ``level`` sets the accuracy objective for the classification greedy (Stage 4a):
-      - "hierarchical": cluster classifier, objective = subclass_rollup + lam*cluster (default)
+      - "hierarchical": cluster classifier, objective = w_sub*subclass_rollup + lam*cluster (default)
       - "subclass": pure 16-way subclass classifier, objective = subclass accuracy
       - "cluster":  pure 215-way cluster classifier, objective = cluster accuracy
     The candidate-pool cap and the saved curve adapt to ``level``; the curve always reports
@@ -902,7 +1472,28 @@ def run_selection(
     stays hard accuracy regardless): "soft_acc" (default, smooth NB-posterior relaxation of
     accuracy), "logpost" (cross-entropy), or "accuracy" (legacy hard 0/1). The smooth
     objectives avoid arbitrary tie-breaking among genes that flip no argmax at a given step.
+
+    ``w_sub``/``lam`` weight the subclass and cluster terms of the hierarchical objective:
+    (w_sub=1, lam=0) optimises subclass only, (w_sub=0, lam=1) cluster only, and the default
+    (w_sub=1, lam=0.5) is balanced. (For ``level`` in {"subclass", "cluster"} the pure
+    single-level classifier is used and ``w_sub`` is ignored.)
+
+    ``acc_strategy`` / ``ovl_strategy`` independently choose the optimizer for the accuracy
+    ranking (Stage 4a) and the manifold-overlap ranking (Stage 4b): ``"greedy"`` (default,
+    the lazy CELF greedy ``greedy_accuracy`` / ``greedy_overlap``), ``"stochastic_walk"``
+    (multiple randomized random-walk restarts; see ``select_stochastic_walk``) or
+    ``"stochastic_greedy"`` -- or any callable / key registered in ``SELECTORS``. The
+    ``*_strategy_kwargs`` dicts are passed through to the chosen strategy (e.g.
+    ``{"n_walks": 12, "top_k": 15}``). The fused panel combines the two rankings as before.
+    Note the overlap objective's gains are O(N^2) per candidate, so stochastic overlap
+    strategies are markedly slower than greedy -- keep ``overlap_cells`` modest. The
+    pluggable accuracy strategies use the hierarchical ``AccuracyObjective`` with ``w_sub``/
+    ``lam`` derived from ``level`` (so ``level`` is honoured on that path too, except that
+    "subclass" there means the cluster classifier rolled up to subclass rather than the pure
+    16-way classifier).
     """
+    acc_strategy_kwargs = dict(acc_strategy_kwargs or {})
+    ovl_strategy_kwargs = dict(ovl_strategy_kwargs or {})
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -950,29 +1541,56 @@ def run_selection(
     true_sub = bundle["sub_subclass"].astype(int)
     seed_sel = np.nonzero(conv_mask_cand)[0].tolist()
 
-    # --- Stage 4a: accuracy greedy (on a cell subsample) ---
+    # --- Stage 4a: accuracy selection (greedy by default, or a pluggable strategy) ---
     acc_cells = np.sort(rng.choice(
         Xds.shape[0], min(n_accuracy_cells, Xds.shape[0]), replace=False))
     if verbose:
-        print(f"[run] greedy accuracy ({level}/{accuracy_objective}) on {acc_cells.size} "
-              f"cells, {cand_idx.size} candidates", flush=True)
-    if level == "subclass":
-        order_acc, hist_acc = greedy_accuracy_single(
-            Xds[acc_cells], Asub, Bsub, true_sub[acc_cells], seed_sel, n_select,
-            objective=accuracy_objective, verbose=verbose)
-    elif level == "cluster":
-        order_acc, hist_acc = greedy_accuracy_single(
-            Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], seed_sel, n_select,
-            objective=accuracy_objective, verbose=verbose)
-    else:  # hierarchical
-        order_acc, hist_acc = greedy_accuracy(
+        print(f"[run] accuracy selection (level={level}, strategy={acc_strategy}) on "
+              f"{acc_cells.size} cells, {cand_idx.size} candidates", flush=True)
+    acc_info = {}
+    if acc_strategy == "greedy" and not acc_strategy_kwargs:
+        # deterministic CELF greedy on the chosen accuracy level + objective (default path)
+        if level == "subclass":
+            order_acc, hist_acc = greedy_accuracy_single(
+                Xds[acc_cells], Asub, Bsub, true_sub[acc_cells], seed_sel, n_select,
+                objective=accuracy_objective, verbose=verbose)
+        elif level == "cluster":
+            order_acc, hist_acc = greedy_accuracy_single(
+                Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], seed_sel, n_select,
+                objective=accuracy_objective, verbose=verbose)
+        else:  # hierarchical
+            order_acc, hist_acc = greedy_accuracy(
+                Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], true_sub[acc_cells], c2s,
+                seed_sel, n_select, lam=lam, w_sub=w_sub, objective=accuracy_objective,
+                verbose=verbose)
+        hist_acc = np.array(hist_acc)
+    else:
+        # pluggable stochastic strategy on the hierarchical NB-accuracy objective
+        acc_obj = AccuracyObjective(
             Xds[acc_cells], Aclu, Bclu, true_clu[acc_cells], true_sub[acc_cells], c2s,
-            seed_sel, n_select, lam=lam, objective=accuracy_objective, verbose=verbose)
+            w_sub=w_sub, lam=lam)
+        order_acc, hist_acc, acc_info = select_panel(
+            acc_obj, n_select, seed_sel=seed_sel, strategy=acc_strategy, rng=rng,
+            verbose=verbose, **acc_strategy_kwargs)
+        hist_acc = np.array(hist_acc)
 
-    # --- Stage 4b: overlap greedy (on overlap cells) ---
+    # --- Stage 4b: overlap selection (greedy by default, or a pluggable strategy) ---
     ov = graph["overlap_idx"]
-    order_ovl, hist_ovl = greedy_overlap(
-        Xds[ov], graph["ref_knn"], seed_sel, n_select, k=k, verbose=verbose)
+    if verbose:
+        print(f"[run] overlap selection ({ovl_strategy}) on {ov.size} cells, "
+              f"{cand_idx.size} candidates, k={k}", flush=True)
+    ovl_info = {}
+    if ovl_strategy == "greedy" and not ovl_strategy_kwargs:
+        # original hand-fused path: identical output + per-gene overlap history
+        order_ovl, hist_ovl = greedy_overlap(
+            Xds[ov], graph["ref_knn"], seed_sel, n_select, k=k, verbose=verbose)
+        hist_ovl = np.array(hist_ovl)
+    else:
+        ovl_obj = OverlapObjective(Xds[ov], graph["ref_knn"], k=k)
+        order_ovl, hist_ovl, ovl_info = select_panel(
+            ovl_obj, n_select, seed_sel=seed_sel, strategy=ovl_strategy, rng=rng,
+            verbose=verbose, **ovl_strategy_kwargs)
+        hist_ovl = np.array(hist_ovl)
 
     # --- Stage 4c: fuse ---
     fused = reciprocal_rank_fusion(order_acc, order_ovl, conv_mask_cand)
@@ -1003,17 +1621,23 @@ def run_selection(
         "max_subclass_mean", "tau", "top_subclass"]]
     ranking.to_csv(out_dir / "gene_ranking.csv", index=False)
     curve.to_csv(out_dir / "accuracy_curve.csv", index=False)
-    np.savez(
-        out_dir / "selection_meta.npz",
+    meta = dict(
         order_acc=cand_genes[np.array(order_acc, dtype=int)],
         order_ovl=cand_genes[np.array(order_ovl, dtype=int)],
         hist_acc=np.array(hist_acc), hist_ovl=np.array(hist_ovl),
         cand_genes=cand_genes, efficiency=efficiency, n_select=n_select,
+        acc_strategy=acc_strategy, ovl_strategy=ovl_strategy,
     )
+    if "walk_finals" in acc_info:                 # stochastic-walk diagnostics
+        meta["walk_finals"] = acc_info["walk_finals"]
+    if "walk_finals" in ovl_info:
+        meta["walk_finals_ovl"] = ovl_info["walk_finals"]
+    np.savez(out_dir / "selection_meta.npz", **meta)
     if verbose:
         print(f"[run] wrote outputs to {out_dir}", flush=True)
     return dict(ranking=ranking, curve=curve, cand_df=cand_df, fused=fused,
-                order_acc=order_acc, order_ovl=order_ovl, graph=graph, mu=mu)
+                order_acc=order_acc, order_ovl=order_ovl, graph=graph, mu=mu,
+                acc_info=acc_info, ovl_info=ovl_info)
 
 
 def main():
@@ -1045,8 +1669,26 @@ def main():
     p.add_argument("--max_candidates", type=int, default=2000)
     p.add_argument("--n_accuracy_cells", type=int, default=20000)
     p.add_argument("--overlap_cells", type=int, default=6000)
+    p.add_argument("--acc_strategy", default="greedy", choices=sorted(SELECTORS),
+                   help="optimizer for the accuracy ranking (Stage 4a)")
+    p.add_argument("--ovl_strategy", default="greedy", choices=sorted(SELECTORS),
+                   help="optimizer for the manifold-overlap ranking (Stage 4b); the "
+                   "stochastic variants are slow here (O(N^2) gains) -- keep overlap_cells low")
+    p.add_argument("--n_walks", type=int, default=8,
+                   help="stochastic_walk: number of independent random-walk restarts")
+    p.add_argument("--walk_top_k", type=int, default=15,
+                   help="stochastic_walk: pool of most-informative genes sampled each step")
+    p.add_argument("--n_jobs", type=int, default=1,
+                   help="stochastic_walk: parallel worker processes for the walks "
+                   "(-1 = all cores; set OMP_NUM_THREADS=1 for best scaling)")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
+
+    def _walk_kwargs(strategy):
+        return {"n_walks": args.n_walks, "top_k": args.walk_top_k, "n_jobs": args.n_jobs} \
+            if strategy == "stochastic_walk" else {}
+    acc_kwargs = _walk_kwargs(args.acc_strategy)
+    ovl_kwargs = _walk_kwargs(args.ovl_strategy)
 
     cache = Path(args.cache_dir)
     if (cache / "bundle.npz").exists() and not args.rebuild_cache:
@@ -1063,7 +1705,9 @@ def main():
         min_max_subclass_mean=args.min_max_subclass_mean,
         min_tau=args.min_tau, drop_ieg=args.drop_ieg, max_candidates=args.max_candidates,
         n_accuracy_cells=args.n_accuracy_cells, overlap_cells=args.overlap_cells,
-        seed=args.seed, normalize=not args.no_normalize)
+        seed=args.seed, normalize=not args.no_normalize,
+        acc_strategy=args.acc_strategy, acc_strategy_kwargs=acc_kwargs,
+        ovl_strategy=args.ovl_strategy, ovl_strategy_kwargs=ovl_kwargs)
 
 
 if __name__ == "__main__":

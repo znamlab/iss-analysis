@@ -1,0 +1,511 @@
+Gene,Provenance_tier,Status_for_selection,In_core_panel,In_missing_half,In_curated_pool,Functional_axis,Category,Objective_tags,Priority_hint,Why_relevant,Expression_note,References
+Adam10,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam11,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam12,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adam15,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam17,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam18,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adam19,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam21,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adam22,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam23,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adam4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adam8,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adam9,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts10,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts13,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts15,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts16,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts17,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts18,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts20,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adamts6,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Adamts8,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Adgra2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Adgra3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Adgrb3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Adgrf5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Adgrl1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Teneurin-latrophilin,,,,,,
+Adgrl2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Teneurin-latrophilin,,,,,,
+Adgrl3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Teneurin-latrophilin,,,,,,
+Agmat,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Other / unclassified,,,,,,
+Alcam,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Aldoc,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Amigo1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Amigo2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Amigo3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,IgSF / LRR adhesion,,,,,,
+Arpp21,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Astn2,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Other / unclassified,,,,,,
+Atp2b4,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Ion channel / excitability,,,,,,
+Basp1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression.,HIGH — crowding risk,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Bcl11b,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Bcl6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Low,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Bdnf,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Activity-dependent,Neurotrophin / activity reporters,"C,E",Low,Report intrinsic/activity state that can shape projections; NOTE these track STATE not stable identity and can spike (induction) — use with care. [Low; activity-dependent],Low + inducible,Bean 2007; cell-type intrinsic-excitability literature
+Bhlhe22,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",High,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(Bhlhb5) area/projection],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Boc,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cacna1a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,Moderate-high,Bean 2007; cell-type intrinsic-excitability literature
+Cacna1c,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cacna1e,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cacna1g,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"A,C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [T-type; CT-enriched],"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cacna1h,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cacna1i,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cacnb1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Cadm3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cadm4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Calb1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Calb2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Car2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Neurotrophin / metabolic / other,,,,,,
+Car3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Neurotrophin / metabolic / other,,,,,,
+Car4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Neurotrophin / metabolic / other,,,,,,
+Cartpt,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cbln1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Synaptic organizer,,,,,,
+Cbln2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal. [(panel has Cbln1/3)],Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Cbln3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Synaptic organizer,,,,,,
+Cbln4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Cck,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ccn1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Ccn2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Ccn4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Cd226,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Cd24a,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Immune / misc surface,,,,,,
+Cd274,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Cd276,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Cd28,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Cd34,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Cd4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Cd40,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Cd47,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Cd6,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Cdh1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh10,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure.,Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh11,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure.,Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh12,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure.,Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh13,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Cadherin/protocadherin,,,,,,
+Cdh15,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh16,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh17,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh18,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Cdh19,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Cdh20,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Cdh22,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure.,Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh23,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh24,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh26,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdh4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Cdh6,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure.,Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh7,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Cdh8,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Type-II cadherins (projection correlates),"B,C,D,E",High,Cortical wiring cadherins; reported cortex-wide correlates of projection (complements your CSM cadherins); areal & within-type structure. [Areal/wiring],Moderate.,BARseq+MAPseq cadherin-projection (bioRxiv 2020.08.25.266460)
+Cdh9,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Cadherin/protocadherin,,,,,,
+Cdhr1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdhr2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdhr3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdhr4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Cdon,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Celsr1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Celsr2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Celsr3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",High,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP). [Critical for cortical tract formation]",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Chgb,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Chl1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate-high — watch crowding,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Chodl,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Chrm2,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Ion channel / excitability,,,,,,
+Cldn1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn10,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn12,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Claudin,,,,,,
+Cldn19,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn20,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn22,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn23,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Cldn7,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Claudin,,,,,,
+Clstn1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Clstn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Clstn3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Cnr1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cntn1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntn3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cntn4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,D,E",High,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP). [Areal/laminar wiring specificity]",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntn5,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,D,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntn6,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,D,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntnap1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cntnap2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Cntnap3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cntnap4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cox6a2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cplx1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cplx3,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cpne6,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Crh,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Crhbp,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Crmp1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression.,Moderate-high,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Crtac1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Crym,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ctgf,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cux1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [UL (paralog of Cux2)],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Cux2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Cxadr,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Cxcl12,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Cxcl14,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Dcc,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",High,Attractive/repulsive guidance; descending & long-range projection routing.,Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Dchs1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Dchs2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Dgkb,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Dpp10,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"A,C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Dpp6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"A,C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [Kv4 auxiliary; type marker],"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Dpysl2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression. [(CRMP2) high],HIGH — crowding risk,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Dpysl3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression.,HIGH — crowding risk,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Dpysl5,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression.,Moderate-high,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Draxin,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Dscam,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Dscaml1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Dsg2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Efna1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Eph-ephrin,,,,,,
+Efna2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Efna3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Efna4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Eph-ephrin,,,,,,
+Efna5,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting. [Map gradient],Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Efnb1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Efnb2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Efnb3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Elfn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Emx2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Areal patterning,Areal-gradient extras,"D,E",Low,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement. [Areal TF]",Developmental — verify adult,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Enpp2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Eomes,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,E",Low,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(Tbr2) — mostly progenitor],Developmental — likely low in adult,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Epha3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Epha4,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Epha5,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Epha6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Epha7,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting. [Areal gradient in cortex],Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Epha8,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Ephb1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Ephb2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Ephb3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Ephb6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Eph-ephrin,"C,D,E",High,Topographic/retinotopic mapping system — strong areal & V1 map gradients AND projection targeting.,Moderate.,Cang & Feldheim 2013; Triplett 2014 (topographic/retinotopic maps)
+Esam,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Etv1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Fam19a1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Fat1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Fat2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Cadherin/protocadherin,,,,,,
+Fat3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Fat4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Cadherin/protocadherin,,,,,,
+Fezf2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Flrt1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Flrt2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP). [FLRT-Unc5 repulsion]",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Flrt3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Foxo1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [IT vs PT],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Foxp2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Fstl4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Fstl5,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Fxyd6,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Fzd3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP). [Essential for axon tracts (+Celsr3)]",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Gad1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Gap43,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Cytoskeleton / growth,,,,,,
+Gp1ba,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Gp1bb,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Gpx3,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Grid1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Grid2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Grik1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Grin3a,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Grm1,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Ion channel / excitability,,,,,,
+H2-D1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+H2-K1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Hcn1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"A,C,E",High,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [Ih; PT/deep-layer enriched],"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Hcn2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Hmcn1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Hmcn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,ECM / proteoglycan,,,,,,
+Hpcal1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Hs3st4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Icosl,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Id2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Igdcc3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,IgSF / LRR adhesion,,,,,,
+Igdcc4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Igfbp4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Igfbp6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Areal patterning,Areal-gradient extras,"D,E",Med,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement.",Some developmental — verify adult expression.,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Iglon5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Igsf11,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure.",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Igsf21,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure.",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Igsf9,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,IgSF / LRR adhesion,,,,,,
+Igsf9b,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Il1rap,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Il1rapl1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Il1rapl2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Itga1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga10,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga11,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga2b,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Itga4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga6,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga7,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itga8,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Itga9,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Itgad,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgae,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgam,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgav,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Itgax,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Itgb2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb6,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb7,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Integrin,,,,,,
+Itgb8,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Integrin,,,,,,
+Jam2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Jam3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Kcnab1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Kcnab2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnb1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnc2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Kcnd2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnd3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnh1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnh5,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Ion channel / excitability,,,,,,
+Kcnip1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Kcnip4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Ion channel / excitability,,,,,,
+Kcnj3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [GIRK1],"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnma1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [BK; can be high],Moderate-high — watch crowding,Bean 2007; cell-type intrinsic-excitability literature
+Kcnn2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnn3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnq2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnq3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcnq5,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kcns3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity. [IN-enriched],"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Kirrel,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,IgSF / LRR adhesion,,,,,,
+Kirrel3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure. [(panel has Kirrel1)]",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Klf7,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Med,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression. [Pro-axon-growth TF],Low — TF,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+L1cam,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate-high — watch crowding,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Lamp5,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Lgr4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Wnt / misc receptor,,,,,,
+Lgr5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Wnt / misc receptor,,,,,,
+Lgr6,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Wnt / misc receptor,,,,,,
+Lhx2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Areal patterning,Areal-gradient extras,"D,E",Low,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement. [Areal TF]",Developmental — verify adult,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Lmo3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Lmo4,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,D,E",High,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [Areal patterning],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Lrfn1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Lrfn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Lrfn3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Lrfn4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Lrig1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Wnt / misc receptor,,,,,,
+Lrig2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Wnt / misc receptor,,,,,,
+Lrig3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Wnt / misc receptor,,,,,,
+Lrrc38,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Lrrc4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Netrin-DCC-Unc5,"C,D,E",Med,Attractive/repulsive guidance; descending & long-range projection routing. [NGL-2],Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Lrrc4b,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Lrrc4c,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,D,E",Med,"Attractive/repulsive guidance; descending & long-range projection routing. [NGL-1, Ntng1 receptor]",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Lrrc55,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Lrrc8a,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Lrrc8b,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Lrrc8c,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Lrrc8d,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Other / unclassified,,,,,,
+Lrrtm1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Lrrtm2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Lrrtm3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Lrrtm4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Lsamp,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure.",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Luzp2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Lypd1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Lypd6,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Marcksl1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression.,HIGH — crowding risk,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Matn2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Mdga1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Areal patterning,Areal-gradient extras,"D,E",Med,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement.",Some developmental — verify adult expression.,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Mdga2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Areal patterning,Areal-gradient extras,"D,E",Med,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement.",Some developmental — verify adult expression.,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Medag,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Other / unclassified,,,,,,
+Mef2c,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Mmp2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Mmp24,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Metalloprotease / ECM,,,,,,
+Mmp3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Mmp9,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Metalloprotease / ECM,,,,,,
+Mt1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Myl4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ncam1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Ncam2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Ndnf,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Necab1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Necab2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nectin1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Nectin3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Nefl,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Negr1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure.",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nell1,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Other / unclassified,,,,,,
+Neo1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Neurod2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Neurod6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nfasc,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Nfia,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nfib,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nfix,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nlgn1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nlgn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nlgn3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nnat,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nos1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nov,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nphs1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Nptx1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Activity-dependent,Neurotrophin / activity reporters,"C,E",Low,Report intrinsic/activity state that can shape projections; NOTE these track STATE not stable identity and can spike (induction) — use with care.,Activity-dependent / inducible — variable; interpret cautiously.,Bean 2007; cell-type intrinsic-excitability literature
+Nptx2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Activity-dependent,Neurotrophin / activity reporters,"C,E",Low,Report intrinsic/activity state that can shape projections; NOTE these track STATE not stable identity and can spike (induction) — use with care. [Activity-dependent — can spike],Inducible — watch crowding,Bean 2007; cell-type intrinsic-excitability literature
+Npy,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nr2f1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,D,E",High,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(COUP-TF1) primary areal gradient — persists in adult],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nr2f2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,D,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Nr4a2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nrcam,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP).",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Nrip3,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Nrn1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Cytoskeleton / growth,,,,,,
+Nrp1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Nrp2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Nrxn1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Moderate-high — watch crowding,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nrxn2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Nrxn1/3 moderate-high — watch crowding.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Nrxn3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Neurexin-neuroligin / LRRTM / GluD,"C,E",Med,Trans-synaptic adhesion specifying connectivity; within-type variation can carry projection signal.,Moderate-high — watch crowding,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Ntm,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure. [(neurotrimin)]",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Ntn1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",Med,Attractive/repulsive guidance; descending & long-range projection routing. [Also Ntn1 secreted],Low-moderate,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Ntn3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Netrin-DCC-Unc5,,,,,,
+Ntn4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Netrin-DCC-Unc5,,,,,,
+Ntn5,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Netrin-DCC-Unc5,,,,,,
+Ntng1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Netrin-DCC-Unc5,"C,D,E",Med,Attractive/repulsive guidance; descending & long-range projection routing. [Laminar synaptic specificity (+Lrrc4c)],Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Ntng2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Netrin-DCC-Unc5,"C,D,E",Med,Attractive/repulsive guidance; descending & long-range projection routing. [Laminar synaptic specificity (+Lrrc4)],Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Ntrk2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Activity-dependent,Neurotrophin / activity reporters,"C,E",Med,Report intrinsic/activity state that can shape projections; NOTE these track STATE not stable identity and can spike (induction) — use with care. [(TrkB)],Activity-dependent / inducible — variable; interpret cautiously.,Bean 2007; cell-type intrinsic-excitability literature
+Ntrk3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Activity-dependent,Neurotrophin / activity reporters,"C,E",Med,Report intrinsic/activity state that can shape projections; NOTE these track STATE not stable identity and can spike (induction) — use with care. [(TrkC)],Activity-dependent / inducible — variable; interpret cautiously.,Bean 2007; cell-type intrinsic-excitability literature
+Nxph1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ocln,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Opcml,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,IgLON / IgSF adhesion,"B,C,D,E",Med,"IgLON family areal/laminar adhesion; within-type variation, projection & spatial structure.",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pak1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Pax6,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,D,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [Areal; partly adult],Partly developmental — verify adult,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Pcdh10,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8). [Striosome/areal]",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pcdh17,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pcdh19,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pcdh7,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pcdh8,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Cadherin/protocadherin,,,,,,
+Pcdh9,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Pcp4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Pcp4l1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Pde1a,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Pdyn,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Penk,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Plxna1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Plxna2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Plxna3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Plxna4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Plxnb1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Plxnb2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Semaphorin-Plexin,,,,,,
+Plxnb3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Semaphorin-Plexin,,,,,,
+Plxnc1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Semaphorin-Plexin,,,,,,
+Plxnd1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted. [Sema3e receptor]",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Pou3f2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(Brn2) UL identity],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Pou3f3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(Brn1) UL identity],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Ppfia1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Ppfia2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Ppfia3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Ppfia4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Prdx5,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Pthlh,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ptn,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ptpra,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Receptor tyr phosphatase,,,,,,
+Ptprc,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Receptor tyr phosphatase,,,,,,
+Ptprf,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Receptor tyr phosphatase,,,,,,
+Ptprm,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Receptor tyr phosphatase,,,,,,
+Ptprs,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Receptor tyr phosphatase,,,,,,
+Ptpru,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Receptor tyr phosphatase,,,,,,
+Ptx4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Immune / misc surface,,,,,,
+Pvalb,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Rab3b,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Rasl10a,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Rbp4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Reln,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Rgs4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Robo1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Slit-Robo,"C,E",High,Midline/topographic axon guidance; callosal & cortico-thalamic routing.,Moderate; verify in Stage 2.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Robo2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Slit-Robo,"C,E",High,Midline/topographic axon guidance; callosal & cortico-thalamic routing.,Moderate; verify in Stage 2.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Robo3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Slit-Robo,"C,E",Med,Midline/topographic axon guidance; callosal & cortico-thalamic routing. [Often low expression],Low — floor risk,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Rorb,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Rrad,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Ryk,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Other guidance / tract formation,"C,E",Med,"Adhesion-type guidance, fasciculation and tract formation (L1-CAM family, Wnt-PCP). [Wnt guidance receptor]",Moderate; L1cam/Chl1 can be high.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Satb2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Scn1a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Scn1b,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Scn2a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Scn3b,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Scn8a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Intrinsic excitability,Voltage-gated channels,"C,E",Med,Set firing phenotype that co-varies with projection class (PT bursting vs IT regular); indirect projection link via activity.,"Moderate; some (Kcnma1, Cacna1a) higher — check.",Bean 2007; cell-type intrinsic-excitability literature
+Sdc1,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Sdc2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,ECM / proteoglycan,,,,,,
+Sdc3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,ECM / proteoglycan,,,,,,
+Sdc4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Sdk1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Sdk2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Sema3a,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema3b,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Semaphorin-Plexin,,,,,,
+Sema3c,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema3d,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema3e,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted. [IT/PT projection specificity]",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema3f,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Semaphorin-Plexin,,,,,,
+Sema4d,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema4g,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Semaphorin-Plexin,,,,,,
+Sema5a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema6a,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema6b,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Semaphorin-Plexin,,,,,,
+Sema6c,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Semaphorin-Plexin,,,,,,
+Sema6d,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Sema7a,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Axon guidance,Semaphorin-Plexin-Nrp,"C,E",High,"Repulsive guidance, dendritic & axonal targeting; some class-restricted.",Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Serpine2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Sirpa,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Slc17a7,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Slit1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Slit-Robo,"C,E",High,Midline/topographic axon guidance; callosal & cortico-thalamic routing.,Moderate; verify in Stage 2.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Slit2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Slit-Robo,"C,E",High,Midline/topographic axon guidance; callosal & cortico-thalamic routing.,Moderate; verify in Stage 2.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Slit3,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Slit-Robo,"C,E",High,Midline/topographic axon guidance; callosal & cortico-thalamic routing.,Moderate; verify in Stage 2.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Slitrk1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Slitrk2,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Slitrk3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Slitrk4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Synaptic organizer,,,,,,
+Slitrk5,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Slitrk / non-clustered protocadherin,"C,D,E",Med,"Synaptic specificity and laminar/areal targeting (panel has Slitrk6, Pcdh8).",Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Slitrk6,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Synaptic organizer,,,,,,
+Sorcs3,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Sox11,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [Neurite growth],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Sox4,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"C,E",Low,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Sox5,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",High,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [Deep-layer/PT-CT],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Spock3,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Spon1,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Sst,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Stmn2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon growth,Cytoskeleton / growth effectors,"C,E",Low,Intracellular axon-growth machinery; mechanistically central to projection but often HIGH expression. [(SCG10) very high in neurons],VERY HIGH — likely exclude,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Synpr,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Tac2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Tafa2,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Tafa3,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Tafa4,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Tafa5,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,Other / unclassified,,,,,,
+Tbr1,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",High,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [L6/CT & IT class],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Tenm1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Teneurin (latrophilin partners),"C,D,E",High,Trans-synaptic teneurin–latrophilin code (panel already has Adgrl1/2/3); gradients give topographic wiring.,Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Tenm2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Synaptic wiring,Teneurin (latrophilin partners),"C,D,E",High,Trans-synaptic teneurin–latrophilin code (panel already has Adgrl1/2/3); gradients give topographic wiring. [Topographic gradient],Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Tenm3,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Teneurin (latrophilin partners),"C,D,E",High,Trans-synaptic teneurin–latrophilin code (panel already has Adgrl1/2/3); gradients give topographic wiring. [Visual-system wiring/eye-specific],Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Tenm4,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,Yes,Synaptic wiring,Teneurin (latrophilin partners),"C,D,E",High,Trans-synaptic teneurin–latrophilin code (panel already has Adgrl1/2/3); gradients give topographic wiring.,Moderate.,Sudhof 2017; de Wit & Ghosh 2016 (synaptic adhesion codes)
+Th,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Tle4,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Tmem25,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,IgSF / LRR adhesion,,,,,,
+Tnc,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Tnn,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Tnr,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,ECM / proteoglycan,,,,,,
+Tnxb,1. Core panel (kept / fixed),Fixed — in current panel,CSM panel 2,No,No,ECM / proteoglycan,,,,,,
+Tox,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,D,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [Layer/areal],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Tox2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,D,E",Low,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability.,LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
+Trpc6,1. Core panel (kept / fixed),Fixed — in current panel,extra genes,No,No,Ion channel / excitability,,,,,,
+Tshz2,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Transcription factor,,,,,,
+Unc5a,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",High,Attractive/repulsive guidance; descending & long-range projection routing.,Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Unc5b,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",High,Attractive/repulsive guidance; descending & long-range projection routing.,Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Unc5c,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",High,Attractive/repulsive guidance; descending & long-range projection routing.,Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Unc5d,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Axon guidance,Netrin-DCC-Unc5,"C,E",High,Attractive/repulsive guidance; descending & long-range projection routing.,Moderate.,GO:0007411; Kolodkin & Tessier-Lavigne 2011
+Vip,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Vstm2a,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Immune / misc surface,,,,,,
+Vstm2b,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Vtcn1,2. Missing-half CSM (re-add / reorder candidate),Evaluate — recover candidate,No,Yes,No,Immune / misc surface,,,,,,
+Wnt7b,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Areal patterning,Areal-gradient extras,"D,E",Med,"Genes with cortical areal gradients (A-P / M-L), useful for objective D and V1 placement.",Some developmental — verify adult expression.,O'Leary & Sahara 2008; areal-gradient / Allen ISH
+Zcchc12,1. Core panel (kept / fixed),Fixed — in current panel,V1,No,No,Other / unclassified,,,,,,
+Zfpm2,3. Curated novel candidate,Evaluate — novel candidate,No,No,Yes,Regulons / TFs,Projection-class & areal TFs,"A,C,E",Med,Master regulators of projection-neuron class identity and areal patterning; SCENIC regulon drivers; low copy = crowding-safe but check detectability. [(Fog2) PT/cortico-fugal],LOW (TF) — detection-floor risk; good for crowding.,Molyneaux 2007; Greig 2013; Lodato & Arlotta 2015
