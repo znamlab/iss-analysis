@@ -32,8 +32,11 @@ INH = {"Lamp5", "Pvalb", "Sncg", "Sst", "Sst Chodl", "Vip"}
 # --------------------------------------------------------------------------------------
 
 def load_ranking(out_dir):
-    """Read a selection output dir -> ordered gene list (by fused_rank) + the table."""
-    df = pd.read_csv(Path(out_dir) / "gene_ranking.csv").sort_values("fused_rank")
+    """Read a selection output dir -> ordered gene list + the table. Handles both the fused
+    panels (``fused_rank``) and the step-wise panels (``rank``)."""
+    df = pd.read_csv(Path(out_dir) / "gene_ranking.csv")
+    rank_col = "fused_rank" if "fused_rank" in df.columns else "rank"
+    df = df.sort_values(rank_col)
     return df["gene"].tolist(), df
 
 
@@ -106,7 +109,14 @@ def selection_curves(out_dir, ax=None):
         ax[0].plot(curve["n_genes"], curve["cluster_acc_visp"], "--s", label="cluster (VISp)")
     ax[0].set(xlabel="# genes", ylabel="accuracy", title="classification accuracy")
     ax[0].legend(); ax[0].grid(alpha=.3)
-    ax[1].plot(np.arange(len(meta["hist_ovl"])) + 1, meta["hist_ovl"], color="C2")
+    # manifold-overlap history: "hist_ovl" (fused) or a per-stage "*overlap*" key (step-wise)
+    ovl_key = ("hist_ovl" if "hist_ovl" in meta.files
+               else next((k for k in meta.files if "overlap" in k.lower()), None))
+    if ovl_key is not None:
+        ho = np.asarray(meta[ovl_key], dtype=float)
+        nsel = int(meta["n_select"]) if "n_select" in meta.files else len(ho)
+        x = np.arange(len(ho)) + (nsel - len(ho)) + 1     # align overlap-stage genes to size
+        ax[1].plot(x, ho, color="C2")
     ax[1].set(xlabel="# genes", ylabel="kNN-graph overlap", title="manifold preservation")
     ax[1].grid(alpha=.3)
     return curve
@@ -131,10 +141,13 @@ def expression_across_subclasses(ds, genes, ax=None, max_genes=60):
     ax.grid(axis="x", alpha=.25)
 
 
-def per_gene_boxplots(ds, genes, pdf_path, per_page=12, cap=4000, eff=None):
-    """One panel per gene: subclasses on x, single-cell expression on y. Multi-page PDF.
-    eff=None plots raw counts; otherwise down-samples first."""
+def per_gene_boxplots(ds, genes, pdf_path, per_page=12, cap=4000, eff=None, annot=None):
+    """One panel per gene: subclasses on x, single-cell expression on y. Multi-page PDF, in
+    the order ``genes`` is given (each title prefixed with its 1-based rank). ``eff=None``
+    plots raw counts; otherwise down-samples first. ``annot`` is an optional dict gene->str
+    appended to the title (e.g. stage / expression / tau)."""
     from matplotlib.backends.backend_pdf import PdfPages
+    annot = annot or {}
     labels = [s.replace(" CTX", "") for s in ds["sub_labels"]]
     n = len(labels)
     rng = np.random.default_rng(0)
@@ -147,7 +160,7 @@ def per_gene_boxplots(ds, genes, pdf_path, per_page=12, cap=4000, eff=None):
         for s0 in range(0, len(cols), per_page):
             page = cols[s0:s0 + per_page]
             fig, axes = plt.subplots(R, C, figsize=(16, 18)); axes = axes.ravel()
-            for ax, (j, g) in zip(axes, page):
+            for ax, (rk, (j, g)) in zip(axes, enumerate(page, start=s0 + 1)):
                 col = ds["X"][:, j].astype(float)
                 data = [col[ci] for ci in cby]
                 if eff:
@@ -159,7 +172,8 @@ def per_gene_boxplots(ds, genes, pdf_path, per_page=12, cap=4000, eff=None):
                 ax.plot(np.arange(n), [d.mean() for d in data], "D", color="crimson", ms=3)
                 ax.set_yscale("symlog", linthresh=1)
                 ax.set_xticks(np.arange(n)); ax.set_xticklabels(labels, rotation=90, fontsize=5)
-                ax.set_title(g, fontsize=9); ax.grid(axis="y", alpha=.25)
+                ttl = f"#{rk} {g}" + (f"  {annot[g]}" if g in annot else "")
+                ax.set_title(ttl, fontsize=8); ax.grid(axis="y", alpha=.25)
             for ax in axes[len(page):]:
                 ax.axis("off")
             pdf.savefig(fig, dpi=110); plt.close(fig)
@@ -271,6 +285,30 @@ def expression_budget_curve(ds, genes):
     # per-gene mean over cells, without materialising a float64 copy of the whole matrix
     gmean = ds["X"][:, cols].sum(axis=0, dtype=np.float64) / ds["X"].shape[0]
     return np.cumsum(gmean)
+
+
+def manifold_overlap_curve(ds, genes, sizes, eff=0.1, k=15, overlap_cells=4000,
+                           n_hvg=2000, n_pcs=50, seed=0):
+    """kNN-graph overlap (manifold preservation) of the first-N genes vs a full-transcriptome
+    reference graph, recomputed at each size on a fixed cell subset of ``ds`` — so different
+    panels are directly comparable. Mirrors the Stage-4b overlap metric."""
+    mini = {"subsample_X": ds["X"], "gene_names": ds["gene_names"]}
+    g = pdsn.build_neighbor_graph(mini, overlap_cells, n_hvg, n_pcs, k, seed)
+    ov, ref = g["overlap_idx"], g["ref_knn"]
+    N = len(ov)
+    R = np.zeros((N, N), dtype=bool)
+    R[np.arange(N)[:, None], ref] = True
+    rng = np.random.default_rng(seed)
+    Xov = ds["X"][ov]
+    out = []
+    for nsz in sizes:
+        cols = [ds["gindex"][x] for x in genes[:nsz] if x in ds["gindex"]]
+        t = np.log1p(pdsn.resample_counts(Xov[:, cols].astype("int32"), eff, rng).astype("float32"))
+        sq = (t * t).sum(1)
+        D = sq[:, None] + sq[None, :] - 2.0 * (t @ t.T)
+        np.maximum(D, 0, out=D)
+        out.append(pdsn._mean_knn_overlap(D, R, k))
+    return np.array(out)
 
 
 def region_accuracy(ds, genes, regions, sizes=(50, 100, 200, 300, 400), eff=0.1):
