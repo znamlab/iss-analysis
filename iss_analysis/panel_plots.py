@@ -99,22 +99,27 @@ def selection_curves(out_dir, ax=None):
     """Accuracy + manifold-overlap vs panel size from a selection output dir."""
     out_dir = Path(out_dir)
     curve = pd.read_csv(out_dir / "accuracy_curve.csv")
-    meta = np.load(out_dir / "selection_meta.npz", allow_pickle=True)
+    meta_path = out_dir / "selection_meta.npz"
+    meta = np.load(meta_path, allow_pickle=True) if meta_path.exists() else None
+    meta_files = list(meta.files) if meta is not None else []
     if ax is None:
         _, ax = plt.subplots(1, 2, figsize=(11, 4))
-    ax[0].plot(curve["n_genes"], curve["subclass_acc"], "-o", label="subclass")
-    ax[0].plot(curve["n_genes"], curve["cluster_acc"], "-o", label="cluster")
+    ax[0].plot(curve["n_genes"], curve["subclass_acc"], "-o", color="C0", label="subclass")
+    ax[0].plot(curve["n_genes"], curve["cluster_acc"], "-o", color="C1", label="cluster")
     if "subclass_acc_visp" in curve:
-        ax[0].plot(curve["n_genes"], curve["subclass_acc_visp"], "--s", label="subclass (VISp)")
-        ax[0].plot(curve["n_genes"], curve["cluster_acc_visp"], "--s", label="cluster (VISp)")
+        ax[0].plot(curve["n_genes"], curve["subclass_acc_visp"], "--s", color="C0", label="subclass (VISp)")
+        ax[0].plot(curve["n_genes"], curve["cluster_acc_visp"], "--s", color="C1", label="cluster (VISp)")
+    if "subclass_acc_mos" in curve:
+        ax[0].plot(curve["n_genes"], curve["subclass_acc_mos"], "-.^", color="C0", label="subclass (MOs)")
+        ax[0].plot(curve["n_genes"], curve["cluster_acc_mos"], "-.^", color="C1", label="cluster (MOs)")
     ax[0].set(xlabel="# genes", ylabel="accuracy", title="classification accuracy")
     ax[0].legend(); ax[0].grid(alpha=.3)
     # manifold-overlap history: "hist_ovl" (fused) or a per-stage "*overlap*" key (step-wise)
-    ovl_key = ("hist_ovl" if "hist_ovl" in meta.files
-               else next((k for k in meta.files if "overlap" in k.lower()), None))
+    ovl_key = ("hist_ovl" if "hist_ovl" in meta_files
+               else next((k for k in meta_files if "overlap" in k.lower()), None))
     if ovl_key is not None:
         ho = np.asarray(meta[ovl_key], dtype=float)
-        nsel = int(meta["n_select"]) if "n_select" in meta.files else len(ho)
+        nsel = int(meta["n_select"]) if "n_select" in meta_files else len(ho)
         x = np.arange(len(ho)) + (nsel - len(ho)) + 1     # align overlap-stage genes to size
         ax[1].plot(x, ho, color="C2")
     ax[1].set(xlabel="# genes", ylabel="kNN-graph overlap", title="manifold preservation")
@@ -279,12 +284,16 @@ def panel_table(datasets, panels, sizes=(100, 200, 400), eff=0.1):
 
 
 def expression_budget_curve(ds, genes):
-    """Cumulative mean summed expression / cell as genes are added in the given order
-    (uses the dataset's per-gene mean expression). Returns array length n_genes."""
+    """Cumulative panel expression budget vs #genes, in the given gene order: for each panel
+    size k, sum the first k genes' counts WITHIN each cell, then take the MEDIAN across cells
+    (the typical cell's total summed expression / rolony load). Returns array length n_genes.
+
+    Median of the per-cell sum, not the mean: the per-cell summed-expression distribution is
+    right-skewed, and optical crowding is governed by the typical cell, not the mean (which a
+    few very-high-count cells inflate)."""
     cols = [ds["gindex"][g] for g in genes if g in ds["gindex"]]
-    # per-gene mean over cells, without materialising a float64 copy of the whole matrix
-    gmean = ds["X"][:, cols].sum(axis=0, dtype=np.float64) / ds["X"].shape[0]
-    return np.cumsum(gmean)
+    running = np.cumsum(ds["X"][:, cols].astype(np.float64), axis=1)   # (n_cells, k) per-cell running sum
+    return np.median(running, axis=0)
 
 
 def manifold_overlap_curve(ds, genes, sizes, eff=0.1, k=15, overlap_cells=4000,

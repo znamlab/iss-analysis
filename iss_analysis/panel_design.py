@@ -1416,9 +1416,13 @@ def evaluate_curve(Xf, A, B, ordered_cand, true_clu, true_sub, c2s, sizes, visp_
 
 
 def evaluate_curve_pure(Xf, Asub, Bsub, true_sub, Aclu, Bclu, true_clu, ordered_cand,
-                        sizes, visp_mask=None):
+                        sizes, visp_mask=None, region_masks=None):
     """Accuracy vs panel size using pure-level classifiers: 16-way subclass (Asub,Bsub) and
-    215-way cluster (Aclu,Bclu), reported side by side (overall + VISp)."""
+    215-way cluster (Aclu,Bclu), reported side by side (overall + each region in
+    ``region_masks``). ``region_masks`` = {name: bool mask} -> columns ``{sub,clu}_acc_{name}``;
+    for back-compat ``visp_mask`` is accepted as a shorthand for {"visp": mask}."""
+    if region_masks is None:
+        region_masks = {"visp": visp_mask} if visp_mask is not None else {}
     rows = []
     for n in sizes:
         sel = list(ordered_cand[:n])
@@ -1426,9 +1430,10 @@ def evaluate_curve_pure(Xf, Asub, Bsub, true_sub, Aclu, Bclu, true_clu, ordered_
         pc = _cell_loglik(Xf, Aclu, Bclu, sel).argmax(1)
         row = {"n_genes": n, "subclass_acc": float((ps == true_sub).mean()),
                "cluster_acc": float((pc == true_clu).mean())}
-        if visp_mask is not None and visp_mask.any():
-            row["subclass_acc_visp"] = float((ps[visp_mask] == true_sub[visp_mask]).mean())
-            row["cluster_acc_visp"] = float((pc[visp_mask] == true_clu[visp_mask]).mean())
+        for rname, m in region_masks.items():
+            if m is not None and m.any():
+                row[f"subclass_acc_{rname}"] = float((ps[m] == true_sub[m]).mean())
+                row[f"cluster_acc_{rname}"] = float((pc[m] == true_clu[m]).mean())
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -1440,7 +1445,7 @@ def evaluate_curve_pure(Xf, Asub, Bsub, true_sub, Aclu, Bclu, true_clu, ordered_
 def _prepare_selection(bundle, *, efficiency=0.1, lam=0.5, min_max_subclass_mean=1.0,
                        min_tau=0.3, drop_ieg=False, max_candidates=2000, cap_key="marginal",
                        n_hvg=2000, n_pcs=50, k=15, overlap_cells=6000, n_accuracy_cells=20000,
-                       normalize=True, seed=0, verbose=True):
+                       normalize=True, seed=0, seed_genes=None, verbose=True):
     """Shared Stages 0-3 setup for the selection orchestrators (normalise -> candidate filter
     -> marginal-MI cap -> reference manifold -> down-sampled candidate matrix + NB coefficients
     + accuracy-cell subsample). Returns everything the greedy/strategy stages need. The RNG is
@@ -1453,22 +1458,36 @@ def _prepare_selection(bundle, *, efficiency=0.1, lam=0.5, min_max_subclass_mean
         bundle = normalize_bundle(bundle)
     gn = np.asarray(bundle["gene_names"])
 
+    # genes force-kept as candidates: conventional markers always; plus any custom seed genes
+    force_genes = sorted(set(CONVENTIONAL_MARKERS) |
+                         (set(seed_genes) if seed_genes is not None else set()))
+    if seed_genes is not None and verbose:
+        sset = set(seed_genes)
+        missing = sorted(sset - set(gn.tolist()))
+        print(f"[run] custom seed: {len(sset)} genes ({len(sset) - len(missing)} in vocab)"
+              + (f"; not in dataset: {missing}" if missing else ""), flush=True)
     cand_df = filter_candidate_genes(
-        bundle, min_max_subclass_mean, min_tau, drop_ieg, verbose=verbose)
+        bundle, min_max_subclass_mean, min_tau, drop_ieg, conventional=force_genes,
+        verbose=verbose)
     cand_idx = cand_df.loc[cand_df["candidate"], "idx"].to_numpy()
     cand_genes = gn[cand_idx]
     conv_mask_cand = np.isin(cand_genes, CONVENTIONAL_MARKERS)
+    # forced seed (stage-1 starting genes): custom list if given, else conventional markers
+    seed_mask_cand = (np.isin(cand_genes, seed_genes) if seed_genes is not None
+                      else conv_mask_cand)
+    force_mask_cand = conv_mask_cand | seed_mask_cand
 
     mu = marginal_usefulness(bundle, cand_idx, efficiency=efficiency, lam=lam, seed=seed)
     if max_candidates and len(cand_idx) > max_candidates:
         top = np.argsort(mu[cap_key])[::-1][:max_candidates]
-        keep = np.array(sorted(set(top.tolist()) | set(np.nonzero(conv_mask_cand)[0].tolist())))
+        keep = np.array(sorted(set(top.tolist()) | set(np.nonzero(force_mask_cand)[0].tolist())))
         cand_idx, cand_genes = cand_idx[keep], cand_genes[keep]
         conv_mask_cand = conv_mask_cand[keep]
+        seed_mask_cand = seed_mask_cand[keep]
         mu = {key: val[keep] for key, val in mu.items()}
         if verbose:
             print(f"[run] capped greedy pool to {len(cand_idx)} candidates "
-                  f"(top {max_candidates} by {cap_key} + conventional)", flush=True)
+                  f"(top {max_candidates} by {cap_key} + forced)", flush=True)
 
     graph = build_neighbor_graph(bundle, overlap_cells, n_hvg, n_pcs, k, seed)
     Xds = resample_counts(bundle["subsample_X"][:, cand_idx].astype("int32"),
@@ -1483,7 +1502,7 @@ def _prepare_selection(bundle, *, efficiency=0.1, lam=0.5, min_max_subclass_mean
         Aclu=Aclu, Bclu=Bclu, Asub=Asub, Bsub=Bsub,
         c2s=bundle["cluster_to_subclass"].astype(int),
         true_clu=bundle["sub_cluster"].astype(int), true_sub=bundle["sub_subclass"].astype(int),
-        seed_sel=np.nonzero(conv_mask_cand)[0].tolist(), acc_cells=acc_cells)
+        seed_sel=np.nonzero(seed_mask_cand)[0].tolist(), acc_cells=acc_cells)
 
 
 def run_selection(
@@ -1633,9 +1652,10 @@ def run_selection(
     # --- Stage 5: evaluation curve (fused order) ---
     fused_order = fused.sort_values("fused_rank")["cand"].to_numpy()
     sizes = [s for s in (50, 100, 150, 200, 250, 300, 350, 400) if s <= len(fused_order)]
-    visp = (bundle["sub_region"] == "VISp")
+    reg = np.asarray(bundle["sub_region"]).astype(str)
+    region_masks = {"visp": reg == "VISp", "mos": reg == "MOs_FRP"}
     curve = evaluate_curve_pure(Xds, Asub, Bsub, true_sub, Aclu, Bclu, true_clu,
-                                fused_order, sizes, visp)
+                                fused_order, sizes, region_masks=region_masks)
     if verbose:
         print("[run] accuracy curve:\n" + curve.to_string(index=False), flush=True)
 
@@ -1671,7 +1691,7 @@ def run_selection_stepwise(
     efficiency=0.1, accuracy_objective="soft_acc",
     min_max_subclass_mean=3.0, min_tau=0.3, drop_ieg=False, max_candidates=2000,
     n_accuracy_cells=20000, overlap_cells=6000, n_hvg=2000, n_pcs=50, k=15,
-    seed=0, normalize=True, verbose=True,
+    seed=0, normalize=True, seed_genes=None, verbose=True,
 ):
     """Step-wise (sequential, seed-chained) selection: build ONE cumulative panel where each
     stage adds genes optimising its objective conditioned on (seeded with) all previously
@@ -1692,31 +1712,44 @@ def run_selection_stepwise(
         bundle, efficiency=efficiency, lam=0.5, min_max_subclass_mean=min_max_subclass_mean,
         min_tau=min_tau, drop_ieg=drop_ieg, max_candidates=max_candidates, cap_key="marginal",
         n_hvg=n_hvg, n_pcs=n_pcs, k=k, overlap_cells=overlap_cells,
-        n_accuracy_cells=n_accuracy_cells, normalize=normalize, seed=seed, verbose=verbose)
+        n_accuracy_cells=n_accuracy_cells, normalize=normalize, seed=seed,
+        seed_genes=seed_genes, verbose=verbose)
     Xds, graph, acc = P["Xds"], P["graph"], P["acc_cells"]
     ov, cand_idx, cand_genes, mu, cand_df = (graph["overlap_idx"], P["cand_idx"],
                                              P["cand_genes"], P["mu"], P["cand_df"])
 
-    targets = np.cumsum([int(n) for _, n in stages])      # cumulative panel size per stage
-    order, hist = list(P["seed_sel"]), {}                 # conventional markers seed stage 1
-    for si, ((obj, _n), target) in enumerate(zip(stages, targets), start=1):
-        if verbose:
-            print(f"[stepwise] stage {si}: {obj} -> {int(target)} genes "
-                  f"(from {len(order)})", flush=True)
-        if obj == "subclass":
+    # each stage = (objective, n_add[, region]); region (e.g. "MOs_FRP") restricts an accuracy
+    # stage's evaluation cells to that cortical region (global NB classifier kept).
+    stages = [(s[0], int(s[1]), (s[2] if len(s) > 2 else None)) for s in stages]
+    targets = np.cumsum([n for _, n, _ in stages])        # cumulative panel size per stage
+    region_arr = np.asarray(P["bundle"]["sub_region"]).astype(str)
+    order, hist = list(P["seed_sel"]), {}                 # seed genes occupy stage 1's first slots
+    for si, ((obj, _n, region), target) in enumerate(zip(stages, targets), start=1):
+        rtag = f"@{region}" if region else ""
+        if obj in ("subclass", "cluster"):
+            if region is not None:                        # restrict accuracy cells to the region
+                use = np.nonzero(region_arr == region)[0]
+                if len(use) > n_accuracy_cells:
+                    use = np.sort(P["rng"].choice(use, n_accuracy_cells, replace=False))
+            else:
+                use = acc
+            A, B, true = ((P["Asub"], P["Bsub"], P["true_sub"]) if obj == "subclass"
+                          else (P["Aclu"], P["Bclu"], P["true_clu"]))
+            if verbose:
+                print(f"[stepwise] stage {si}: {obj}{rtag} -> {int(target)} genes "
+                      f"(from {len(order)}; {len(use)} eval cells)", flush=True)
             order, h = greedy_accuracy_single(
-                Xds[acc], P["Asub"], P["Bsub"], P["true_sub"][acc], order, int(target),
-                objective=accuracy_objective, verbose=verbose)
-        elif obj == "cluster":
-            order, h = greedy_accuracy_single(
-                Xds[acc], P["Aclu"], P["Bclu"], P["true_clu"][acc], order, int(target),
+                Xds[use], A, B, true[use], order, int(target),
                 objective=accuracy_objective, verbose=verbose)
         elif obj == "overlap":
+            if verbose:
+                print(f"[stepwise] stage {si}: overlap -> {int(target)} genes "
+                      f"(from {len(order)})", flush=True)
             order, h = greedy_overlap(
                 Xds[ov], graph["ref_knn"], order, int(target), k=k, verbose=verbose)
         else:
             raise ValueError(f"unknown stage objective {obj!r}")
-        hist[f"stage{si}_{obj}"] = np.asarray(h, dtype=float)
+        hist[f"stage{si}_{obj}{rtag}"] = np.asarray(h, dtype=float)
 
     order = np.array(order, dtype=int)
     stage = np.searchsorted(targets, np.arange(len(order)), side="right") + 1
@@ -1731,9 +1764,11 @@ def run_selection_stepwise(
     ranking.to_csv(out_dir / "gene_ranking.csv", index=False)
 
     sizes = [s for s in (50, 100, 150, 200, 250, 300, 350, 400) if s <= len(order)]
-    visp = (P["bundle"]["sub_region"] == "VISp")
+    reg = np.asarray(P["bundle"]["sub_region"]).astype(str)
+    region_masks = {"visp": reg == "VISp", "mos": reg == "MOs_FRP"}
     curve = evaluate_curve_pure(Xds, P["Asub"], P["Bsub"], P["true_sub"],
-                                P["Aclu"], P["Bclu"], P["true_clu"], order, sizes, visp)
+                                P["Aclu"], P["Bclu"], P["true_clu"], order, sizes,
+                                region_masks=region_masks)
     curve.to_csv(out_dir / "accuracy_curve.csv", index=False)
     if verbose:
         print("[stepwise] accuracy curve:\n" + curve.to_string(index=False), flush=True)
@@ -1741,7 +1776,7 @@ def run_selection_stepwise(
     np.savez(out_dir / "selection_meta.npz",
              order=cand_genes[order], stage=stage, stage_boundaries=targets,
              cand_genes=cand_genes, efficiency=efficiency, n_select=int(len(order)),
-             stages=np.array([f"{o}:{n}" for o, n in stages]), **hist)
+             stages=np.array([f"{o}:{n}" + (f":{r}" if r else "") for o, n, r in stages]), **hist)
     if verbose:
         print(f"[stepwise] wrote outputs to {out_dir}", flush=True)
     return dict(ranking=ranking, curve=curve, order=order, cand_df=cand_df, mu=mu, graph=graph)
@@ -1796,7 +1831,26 @@ def main():
     p.add_argument("--stages", default="subclass:200,cluster:100,overlap:100",
                    help="step-wise stages as 'obj:n_add,...' (cumulative); obj in "
                         "{subclass,cluster,overlap}")
+    p.add_argument("--seed_genes_file", default=None,
+                   help="CSV of forced starting/seed genes (overrides the conventional-marker "
+                        "seed); gene names read from column --seed_genes_col (no header)")
+    p.add_argument("--seed_genes_col", type=int, default=2,
+                   help="0-based column index of gene names in --seed_genes_file "
+                        "(codebook format GII,barcode,gene -> 2)")
+    p.add_argument("--seed_genes", default=None,
+                   help="comma-separated genes added to / used as the forced seed set")
     args = p.parse_args()
+
+    seed_genes = None
+    _sg = []
+    if args.seed_genes_file:
+        _sg += pd.read_csv(args.seed_genes_file, header=None).iloc[:, args.seed_genes_col]\
+            .astype(str).str.strip().tolist()
+    if args.seed_genes:
+        _sg += [g.strip() for g in args.seed_genes.split(",") if g.strip()]
+    if _sg:
+        seed_genes = sorted(set(_sg))
+        print(f"[main] forced seed set: {len(seed_genes)} genes", flush=True)
 
     def _walk_kwargs(strategy):
         return {"n_walks": args.n_walks, "top_k": args.walk_top_k, "n_jobs": args.n_jobs} \
@@ -1814,15 +1868,19 @@ def main():
         save_bundle(bundle, cache)
 
     if args.stepwise:
-        stages = tuple((o, int(n)) for o, n in
-                       (s.split(":") for s in args.stages.split(",")))
+        # stage spec "obj:n_add" or "obj:n_add:region" (region restricts an accuracy stage's
+        # eval cells, e.g. "subclass:50:MOs_FRP")
+        def _parse_stage(s):
+            p = s.split(":")
+            return (p[0], int(p[1]), p[2] if len(p) > 2 else None)
+        stages = tuple(_parse_stage(s) for s in args.stages.split(","))
         run_selection_stepwise(
             bundle, args.out_dir, stages=stages, efficiency=args.efficiency,
             accuracy_objective=args.accuracy_objective,
             min_max_subclass_mean=args.min_max_subclass_mean, min_tau=args.min_tau,
             drop_ieg=args.drop_ieg, max_candidates=args.max_candidates,
             n_accuracy_cells=args.n_accuracy_cells, overlap_cells=args.overlap_cells,
-            seed=args.seed, normalize=not args.no_normalize)
+            seed=args.seed, normalize=not args.no_normalize, seed_genes=seed_genes)
     else:
         run_selection(
             bundle, args.out_dir, efficiency=args.efficiency, n_select=args.n_select,
